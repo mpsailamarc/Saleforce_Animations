@@ -1,0 +1,968 @@
+<title>Salesforce Growth Reel</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* One screen: header with five counters, one main chart with the event ribbon inside it, a fixed-height caption band, controls. */
+:root {
+  --bg: #EEF2F7; --panel: #FFFFFF; --fg: #0C1B2E; --muted: #55667B; --line: #D3DCE8;
+  --accent: #179CD7; --accent-soft: rgba(23,156,215,.16); --hot: #E0530A; --violet: #6D4AD8; --teal: #0A8C80; --gold: #D99A00;
+  --good: #12805C; --bad: #C62F2F; --band: rgba(12,27,46,.045);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #08111F; --panel: #101D31; --fg: #E7EEF8; --muted: #8FA1B8; --line: #22344F;
+    --accent: #179CD7; --accent-soft: rgba(23,156,215,.22); --hot: #FF8C4A; --violet: #A98BFF; --teal: #2FD0C1; --gold: #FFC857;
+    --good: #3CCB93; --bad: #FF6B6B; --band: rgba(231,238,248,.05); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #08111F; --panel: #101D31; --fg: #E7EEF8; --muted: #8FA1B8; --line: #22344F;
+  --accent: #179CD7; --accent-soft: rgba(23,156,215,.22); --hot: #FF8C4A; --violet: #A98BFF; --teal: #2FD0C1; --gold: #FFC857;
+  --good: #3CCB93; --bad: #FF6B6B; --band: rgba(231,238,248,.05); color-scheme: dark;
+}
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; margin: 0;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); }
+.stage { height: calc(100vh - 24px); height: calc(100dvh - 24px); min-height: 520px; max-width: 1520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; position: relative; }
+.stage *, .stage *::before, .stage *::after { box-sizing: border-box; }
+.stage p, .stage h1, .stage h2, .stage h3 { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+
+/* header */
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; flex: 0 0 auto; padding-bottom: 10px; }
+.tl { min-width: 0; flex: 1 1 auto; }
+.brand { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; min-width: 0; }
+.ttl { min-width: 0; }
+.logo { height: clamp(40px, 7.2vmin, 60px); width: auto; flex: none; display: block; }
+.title { font-family: var(--font-display); font-weight: 800; letter-spacing: -.01em; font-size: clamp(20px, 3.8vmin, 32px); margin: 0; line-height: 1.12; }
+.tsub { font-family: var(--font-body); font-weight: 500; font-size: clamp(13px, 2.1vmin, 17px); letter-spacing: 0; color: var(--muted); margin-top: 3px; line-height: 1.25; }
+.tsub b { color: var(--accent); font-weight: 700; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 160px)); gap: 6px clamp(12px, 1.8vw, 26px); }
+.stat { position: relative; display: block; width: 100%; min-width: 0; margin: 0; font: inherit; color: inherit; text-align: left; background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0;
+  padding: 4px 4px 3px 0; container-type: inline-size; cursor: pointer; transition: background .15s, border-color .15s; }
+.stat:hover { background: color-mix(in srgb, var(--panel) 75%, transparent); border-top-color: var(--accent); }
+.stat.sel { border-top: 3px solid var(--accent); padding-top: 2px; background: color-mix(in srgb, var(--panel) 75%, transparent); }
+.stat.sel .tx { color: var(--accent); font-weight: 600; }
+.stat:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stat .val { display: block; }
+.stat .lbl { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; }
+.stat .side { position: absolute; right: 0; bottom: 3px; width: 42%; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; pointer-events: none; }
+.stat .lx { color: var(--good); font-weight: 600; font-size: 10.5px; line-height: 13px; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.stat .lx:empty { display: none; }
+.stat .arrow { font-size: 10px; opacity: 0; transition: opacity .3s; margin-left: auto; }
+.stat .val { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; font-size: clamp(18px, 3.2vmin, 28px); font-variant-numeric: tabular-nums; white-space: nowrap; transition: color .3s; }
+.stat[data-dir="up"] .val { color: var(--good); } .stat[data-dir="down"] .val { color: var(--bad); }
+.stat[data-dir="up"] .arrow, .stat[data-dir="down"] .arrow { opacity: 1; }
+.spark { position: relative; display: block; width: 100%; height: 16px; }
+.spark svg { display: block; width: 100%; height: 16px; overflow: visible; }
+.spark path { fill: none; vector-effect: non-scaling-stroke; }
+.spark path.sp-ghost { stroke: var(--muted); stroke-width: 1.1; opacity: .3; }
+.spark path.sp-line { stroke: var(--accent); stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.spark path.sp-area { fill: var(--accent-soft); stroke: none; }
+.sp-dot { position: absolute; width: 6px; height: 6px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); box-sizing: content-box; pointer-events: none; opacity: 0; }
+@container (max-width: 149px) { .spark { display: none; } .stat .lx:not(.est) { display: none; } }
+.topr { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 0; flex: 0 0 auto; }
+.date { font-family: var(--font-display); font-weight: 800; letter-spacing: -.01em; font-size: clamp(20px, 4.2vmin, 38px); line-height: 1; font-variant-numeric: tabular-nums; }
+.actname { font-size: clamp(11px, 1.7vmin, 13px); color: var(--muted); white-space: nowrap; }
+.acts { display: flex; gap: 6px; }
+.actpill { position: relative; width: clamp(28px, 3.6vw, 52px); height: 8px; border-radius: 99px; border: 0; padding: 0; background: var(--line); cursor: pointer; overflow: hidden; }
+.actpill i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 99px; background: var(--accent); }
+.actpill.cur { outline: 2px solid var(--accent-soft); }
+.actpill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* chart selector row */
+.selrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 0 0 auto; font-size: 12.5px; color: var(--muted); }
+.selrow .rl { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 500; }
+.selrow .cur { font-family: var(--font-display); color: var(--accent); font-size: clamp(19px, 3.1vmin, 28px); font-weight: 800; letter-spacing: -.01em; line-height: 1.1; margin-right: 6px; }
+.selrow .swap { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 12.5px; }
+.selrow .swap svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.selrow .hint { margin-left: auto; font-size: 12px; }
+.selrow .key { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; }
+.selrow .key i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px dashed var(--muted); display: inline-block; }
+
+/* chart */
+.chartbox { position: relative; flex: 1 1 auto; min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.chartbox > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+.chartbox text { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+.chartbox .callout text { fill: var(--fg); font-weight: 600; font-size: 11.5px; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.chartbox .gl { fill: var(--good) !important; font-weight: 700; font-size: 11px; }
+.band-label { font-weight: 600; letter-spacing: .02em; font-size: 10.5px !important; opacity: 0; transition: opacity .6s; }
+.band-label.reached { opacity: 1; }
+.head-ring { fill: none; stroke: var(--accent); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out infinite; }
+@keyframes pulse { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.8); opacity: 0; } }
+.callout { opacity: 0; transition: opacity .5s ease; }
+.callout.on { opacity: 1; }
+.callout line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.ev circle.dot { transform-box: fill-box; transform-origin: center; transform: scale(0); transition: transform .55s cubic-bezier(.2, 1.7, .4, 1); pointer-events: none; }
+.ev.on circle.dot { transform: scale(1); pointer-events: all; cursor: pointer; }
+.ev.on.hov circle.dot { transform: scale(1.5); }
+.ev circle.ring { fill: none; stroke-width: 2; transform-box: fill-box; transform-origin: center; opacity: 0; pointer-events: none; }
+.ev.on circle.ring { animation: ring 1.3s ease-out 1; }
+@keyframes ring { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(3.4); opacity: 0; } }
+.lane-label { font-size: 10.5px !important; font-weight: 600; }
+.toast { opacity: 0; transition: opacity .2s; }
+.toast.in { opacity: 1; }
+.toast.out { opacity: 0; transition: opacity .4s; }
+.chartbox .toast text { fill: var(--fg); font-weight: 600; font-size: 11.5px; }
+.actbanner { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(.96); pointer-events: none; text-align: center; opacity: 0;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: 12px; padding: 12px 26px; backdrop-filter: blur(6px); }
+.actbanner small { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.actbanner b { font-family: var(--font-display); font-weight: 800; font-size: clamp(22px, 4vmin, 38px); letter-spacing: -.01em; }
+.actbanner.show { animation: banner 2.4s ease both; }
+@keyframes banner { 0% { opacity: 0; transform: translate(-50%, -46%) scale(.94); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -54%) scale(1.02); } }
+.bigplay { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 12px; cursor: pointer;
+  background: var(--fg); color: var(--bg); border: 0; border-radius: 999px; padding: 14px 24px; font-family: var(--font-display); font-weight: 700; font-size: clamp(15px, 2.4vmin, 19px); box-shadow: 0 10px 30px rgba(0,0,0,.28); }
+.bigplay svg { width: 20px; height: 20px; fill: currentColor; }
+.bigplay:hover { transform: translate(-50%, -50%) scale(1.03); }
+.bigplay[hidden], .btn svg[hidden], .bigplay svg[hidden] { display: none; }
+.tip { position: absolute; z-index: 6; pointer-events: none; max-width: 310px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.22); border-radius: 8px; padding: 9px 11px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.tip b { display: block; color: var(--fg); font-size: 13px; margin-bottom: 2px; }
+.tip[hidden] { display: none; }
+
+/* caption band: fixed height so the chart never resizes between scenes */
+.caption { flex: 0 0 auto; height: clamp(104px, 19vh, 170px); overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: start; align-content: start; padding-top: 2px; scrollbar-width: thin; }
+.cap-in { animation: capin .55s cubic-bezier(.2, .8, .2, 1) both; min-width: 0; }
+@keyframes capin { from { opacity: 0; } to { opacity: 1; } }
+.kicker { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.cap-title { font-family: var(--font-display); font-weight: 800; letter-spacing: -.015em; line-height: 1.05; font-size: clamp(20px, 3.6vmin, 34px); margin-top: 3px; text-wrap: balance; }
+.cap-body { margin-top: 5px; font-size: clamp(12px, 1.9vmin, 15.5px); line-height: 1.45; max-width: 100ch; }
+.cap-big { text-align: right; max-width: 30ch; }
+.cap-big b { display: block; font-family: var(--font-display); font-weight: 800; color: var(--accent); letter-spacing: -.02em; line-height: 1; font-size: clamp(24px, 5vmin, 48px); }
+.cap-big span { display: block; margin-top: 4px; color: var(--muted); font-size: clamp(11px, 1.6vmin, 13px); }
+.recap { grid-column: 1 / -1; }
+.recap h3 { font-family: var(--font-display); font-weight: 800; letter-spacing: -.015em; line-height: 1.05; font-size: clamp(18px, 3vmin, 28px); margin-top: 3px; }
+.recap .grid { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px 14px; }
+.recap .grid div { border-top: 1px solid var(--line); padding-top: 5px; min-width: 0; }
+.recap .grid b { display: block; font-family: var(--font-display); font-weight: 800; color: var(--accent); font-size: clamp(16px, 2.8vmin, 24px); line-height: 1.1; }
+.recap .grid span { display: block; color: var(--muted); font-size: clamp(10.5px, 1.5vmin, 12px); line-height: 1.3; }
+
+/* controls */
+.controls { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; min-width: 36px; padding: 0 13px; border-radius: 999px; cursor: pointer; background: var(--panel); border: 1px solid var(--line); font-size: 13px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+.btn.next { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; padding: 0 18px; }
+.btn.next.waiting { animation: nudge 1.4s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 8px var(--accent-soft); } }
+.btn svg { width: 15px; height: 15px; fill: currentColor; }
+.btn[hidden] { display: none; }
+.btn:focus-visible, .scrub:focus-visible, .speed:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scrubwrap { position: relative; flex: 1 1 160px; min-width: 120px; padding-top: 8px; }
+.scrub { width: 100%; accent-color: var(--accent); height: 22px; margin: 0; }
+.ticks { position: absolute; left: 0; right: 0; top: 0; height: 8px; pointer-events: none; }
+.ticks i { position: absolute; top: 0; width: 1px; height: 7px; background: var(--muted); opacity: .6; }
+.speed { height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); padding: 0 10px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
+.seg button { border: 0; background: transparent; border-radius: 999px; height: 28px; padding: 0 12px; cursor: pointer; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.seg button[aria-checked="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
+.stepcount { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stepcount[hidden] { display: none; }
+.disc { margin-left: auto; max-width: 62ch; font-size: 11px; line-height: 1.3; color: var(--muted); }
+.stat .lx.est { color: var(--muted); border: 1px dashed var(--muted); border-radius: 4px; padding: 0 5px; font-size: 10px; font-weight: 500; line-height: 12px; }
+
+/* sources panel, opened from the controls */
+.notes { position: absolute; left: 0; right: 0; bottom: 56px; z-index: 8; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.28); font-size: 12.5px; line-height: 1.55; color: var(--muted); max-height: 70%; overflow: auto; }
+.notes[hidden] { display: none; }
+.notes h2 { font-family: var(--font-display); font-size: 16px; color: var(--fg); margin-bottom: 6px; }
+.notes ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.notes a { color: var(--accent); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+@media (max-width: 900px) { .selrow .hint { display: none; } .btn .t { display: none; } .btn { padding: 0 11px; } .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-height: 640px) { .cap-body { font-size: 12px; } }
+/* phones: let the page scroll, give the chart a fixed height */
+@media (max-width: 760px) {
+  html, body { height: auto; overflow: auto; }
+  .stage { height: auto; min-height: 0; }
+  .chartbox { flex: none; height: clamp(340px, 58vh, 480px); }
+  .caption { height: auto; min-height: 150px; overflow: visible; grid-template-columns: minmax(0, 1fr); }
+  .cap-big { text-align: left; }
+  .top { flex-direction: column; align-items: stretch; }
+  .topr { flex-direction: row; align-items: center; justify-content: space-between; text-align: left; }
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .notes { position: static; max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .head-ring, .ev.on .ring, .btn.next.waiting { animation: none; }
+  .cap-in { animation: none; } .actbanner.show { display: none; }
+  .ev circle.dot, .callout, .stat .val { transition: none; }
+}
+</style>
+
+<div class="stage" id="stage">
+  <header class="top">
+    <div class="tl">
+      <div class="brand">
+        <img class="logo" alt="Salesforce" width="342" height="240" src="data:image/png;base64,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">
+        <div class="ttl">
+          <h1 class="title">Salesforce: the last 12 years</h1>
+          <p class="tsub">From <b>$5.4B</b> to <b>$41.5B</b> in revenue, with margins up threefold</p>
+        </div>
+      </div>
+      <div class="stats" id="tiles"></div>
+    </div>
+    <div class="topr">
+      <div class="date" id="datelabel">Jan 2015</div>
+      <div class="actname" id="actname"></div>
+      <div class="acts" id="acts" role="group" aria-label="Jump to an act"></div>
+    </div>
+  </header>
+
+  <div class="selrow">
+    <b class="cur" id="curchart">Revenue and growth</b>
+    <span class="swap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>Click a counter to swap the chart</span>
+    <span class="hint">Hover for details. Click the chart or a dot to jump there. <span class="key"><i></i>Dashed: estimate or pending</span></span>
+  </div>
+
+  <section class="chartbox" id="chartbox" aria-label="Chart with an event ribbon">
+    <svg id="chart" role="img" aria-label="Animated chart with an event ribbon underneath"></svg>
+    <div class="actbanner" id="actbanner" aria-hidden="true"><small id="ab-k"></small><b id="ab-t"></b></div>
+    <button class="bigplay" id="bigplay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="bigplay-txt">Watch the story · about 80 seconds</span></button>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <section class="caption" id="caption" aria-live="polite"></section>
+
+  <div class="controls">
+    <button class="btn primary" id="btn-play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true" id="ic-play"><path d="M7 4.5v15l13-7.5z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" id="ic-pause" hidden><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg><span class="t" id="play-txt">Play</span></button>
+    <button class="btn" id="btn-restart" type="button" aria-label="Restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/></svg><span class="t">Restart</span></button>
+    <div class="scrubwrap"><div class="ticks" id="ticks"></div><input class="scrub" id="scrub" type="range" min="0" max="1000" value="1000" aria-label="Timeline position"></div>
+    <select class="speed" id="speed" aria-label="Speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select>
+    <div class="seg" role="radiogroup" aria-label="Playback mode"><button type="button" role="radio" aria-checked="true" id="m-auto">Auto</button><button type="button" role="radio" aria-checked="false" id="m-step">Click</button></div>
+    <span class="stepcount" id="stepcount" hidden></span>
+    <button class="btn" id="btn-back" type="button" aria-label="Previous scene" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4.5v15L4 12z"/></svg><span class="t">Back</span></button>
+    <button class="btn next" id="btn-next" type="button" aria-label="Next scene" hidden>Next<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    <button class="btn" id="btn-info" type="button" aria-label="Sources and caveats" aria-expanded="false">Sources</button>
+    <span class="disc">Personal project using public data. Views are my own. Not an official Salesforce publication or investment advice.</span>
+  </div>
+
+  <aside class="notes" id="notes" hidden>
+    <h2>What to trust in this reel</h2>
+    <ul>
+      <li>Personal project built from public information. Views are my own. This is not an official Salesforce publication and not investment advice.</li>
+      <li>Revenue, GAAP operating margin, GAAP EPS and operating cash flow match Salesforce's 10-K financial statements (SEC XBRL pages). Non-GAAP operating income and EPS come from the Exhibit 99.1 earnings releases. Releases before FY22 do not state a non-GAAP margin, so FY15 to FY20 margins are computed from the company's non-GAAP operating income tables. FY15, FY17, FY19, FY21, FY23 and FY25 non-GAAP figures come from the next year's comparative column, so a later restatement cannot be ruled out.</li>
+      <li>The non-GAAP margin definition changed over time: restructuring is excluded from FY23 and acquisition costs from FY25, so the series is not perfectly like for like. FY18 revenue is as reported ($10.48B); Salesforce later recast it to $10.54B under ASC 606. FY21 GAAP EPS of $4.38 includes a one-time tax benefit of about $2.0B.</li>
+      <li>Everything after January 2026 is guidance, not results, from the Aug 26, 2026 release: revenue $46.1B to $46.4B (midpoint shown), non-GAAP margin 34.3%, GAAP margin 20.1%, non-GAAP EPS $16.67 to $16.71 and GAAP EPS $10.21 to $10.25. The non-GAAP EPS guide includes gains on strategic investments and the effect of the $25B buyback on the share count. Operating cash flow is guided to grow 4% to 5%; I applied 4.5%, a figure I derived. The guide assumes the Contentful and Fin deals close. Between year-ends the lines glide in a straight line.</li>
+      <li>Free cash flow is shown from FY25 only; earlier years were not collected. Agentforce ARR comes from the earnings releases of Dec 3, 2025, Feb 25, May 27 and Aug 26, 2026 (the last reads "above $1.5B").</li>
+      <li>Launch and record dates were checked against Salesforce newsroom pages and earnings releases. For several launches only the date shown in a search result was confirmed, and Agentforce's general availability press release is dated Oct 29, 2024 while its availability date was Oct 25. World events are dated from the WHO, central banks and OpenAI announcements; I did not open all of those pages myself.</li>
+      <li>Deal prices come from deal lists and press coverage, not Salesforce filings. Demandware's $2.8B price and Jul 11, 2016 close date come from Salesforce's press releases. Own's Nov 18, 2024 close date comes from Salesforce's press release and its about $1.9B cash price from TechCrunch's report. Braze is pending. Buyback authorizations and the first dividend come from the 10-Ks. Buybacks for FY23 and FY24 are recalled; later years come from cash flow statements.</li>
+    </ul>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>Product launches</span>
+      <span><i style="background:var(--violet)"></i>Deals</span>
+      <span><i style="background:var(--gold)"></i>Records</span>
+      <span><i style="background:var(--teal)"></i>Capital returns</span>
+      <span><i style="background:var(--muted)"></i>World events</span>
+      <span><i style="border:1.5px dashed var(--muted)"></i>Estimate, pending or unconfirmed</span>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var D = {"mcap":[],"fy":[{"fy":"FY15","date":"2015-01-31","rev":5.374,"gaap_om":-2.71,"ng_om":10.68,"gaap_eps":-0.42,"ng_eps":0.52,"ocf":1.174,"fcf":null},{"fy":"FY16","date":"2016-01-31","rev":6.667,"gaap_om":1.72,"ng_om":12.45,"gaap_eps":-0.07,"ng_eps":0.75,"ocf":1.613,"fcf":null},{"fy":"FY17","date":"2017-01-31","rev":8.392,"gaap_om":0.77,"ng_om":13.23,"gaap_eps":0.26,"ng_eps":1.01,"ocf":2.162,"fcf":null},{"fy":"FY18","date":"2018-01-31","rev":10.48,"gaap_om":2.25,"ng_om":14.5,"gaap_eps":0.17,"ng_eps":1.35,"ocf":2.738,"fcf":null},{"fy":"FY19","date":"2019-01-31","rev":13.282,"gaap_om":4.03,"ng_om":17.05,"gaap_eps":1.43,"ng_eps":2.75,"ocf":3.398,"fcf":null},{"fy":"FY20","date":"2020-01-31","rev":17.098,"gaap_om":1.74,"ng_om":16.81,"gaap_eps":0.15,"ng_eps":2.99,"ocf":4.331,"fcf":null},{"fy":"FY21","date":"2021-01-31","rev":21.252,"gaap_om":2.14,"ng_om":17.72,"gaap_eps":4.38,"ng_eps":4.92,"ocf":4.801,"fcf":null},{"fy":"FY22","date":"2022-01-31","rev":26.492,"gaap_om":2.07,"ng_om":18.69,"gaap_eps":1.48,"ng_eps":4.78,"ocf":6.0,"fcf":null},{"fy":"FY23","date":"2023-01-31","rev":31.352,"gaap_om":3.29,"ng_om":22.54,"gaap_eps":0.21,"ng_eps":5.24,"ocf":7.111,"fcf":null},{"fy":"FY24","date":"2024-01-31","rev":34.857,"gaap_om":14.38,"ng_om":30.5,"gaap_eps":4.2,"ng_eps":8.22,"ocf":10.234,"fcf":null},{"fy":"FY25","date":"2025-01-31","rev":37.895,"gaap_om":19.01,"ng_om":32.98,"gaap_eps":6.36,"ng_eps":10.2,"ocf":13.092,"fcf":12.434},{"fy":"FY26","date":"2026-01-31","rev":41.525,"gaap_om":20.06,"ng_om":34.09,"gaap_eps":7.8,"ng_eps":12.52,"ocf":14.996,"fcf":14.402}],"events":[{"id":"L01","date":"2015-08-25","date_label":"Aug 25, 2015","lane":"Products","short":"Lightning Experience","title":"Lightning Experience","amount":null,"unit":"","status":"reported","detail":"Salesforce unveiled the redesigned Lightning Experience for Sales Cloud together with the Lightning Design System, Lightning Components and App Builder; general availability followed with the Winter '16 release.","source":"salesforce.com"},{"id":"s-demandware","date":"2016-07-11","date_label":"Jul 2016","lane":"Acquisitions","short":"Demandware","title":"Demandware","amount":2.8,"unit":"$B","status":"reported","detail":"E-commerce platform for $2.8B. Announced Jun 1, 2016; completed Jul 11, 2016. Became Commerce Cloud.","source":"Salesforce press releases, Jun 1 and Jul 11, 2016"},{"id":"L03","date":"2016-09-19","date_label":"Sep 19, 2016","lane":"Products","short":"Einstein","title":"Einstein","amount":null,"unit":"","status":"reported","detail":"Salesforce introduced Einstein, its first company-wide artificial intelligence layer embedded across its clouds, alongside the new Salesforce Research group.","source":"salesforce.com"},{"id":"L04","date":"2017-09-19","date_label":"Sep 19, 2017","lane":"Products","short":"Sales Cloud Einstein Forecasting","title":"Sales Cloud Einstein Forecasting","amount":null,"unit":"","status":"reported","detail":"Salesforce announced the next generation of Sales Cloud Einstein (Einstein Forecasting, Opportunity Scoring, Email Insights), in pilot at announcement with general availability expected in the first half of 2018.","source":"salesforce.com"},{"id":"R01","date":"2018-02-28","date_label":"Feb 28, 2018","lane":"Records","short":"First $10B revenue year (FY18)","title":"First $10B revenue year (FY18)","amount":null,"unit":"","status":"reported","detail":"Q4 FY18 release: full fiscal year 2018 (ended 2018-01-31) revenue of $10.48B, up 25% Y/Y; CEO said the quarter 'propelled Salesforce over the $10 billion revenue milestone'. Full-year operating cash flow $2.74B, up 27%.","source":"salesforce.com"},{"id":"acq-mulesoft","date":"2018-05-01","date_label":"2018","lane":"Acquisitions","short":"MuleSoft","title":"MuleSoft","amount":6.5,"unit":"$B","status":"confirmed","detail":"Integration platform, about $6.5B.","source":"Seedtable / Ascendix deal lists"},{"id":"L05","date":"2018-09-25","date_label":"Sep 25, 2018","lane":"Products","short":"Customer 360","title":"Customer 360","amount":null,"unit":"","status":"reported","detail":"Announced at Dreamforce, Customer 360 let companies connect Salesforce apps and data through a shared customer ID; it was in pilot at announcement with general availability planned for 2019.","source":"salesforce.com"},{"id":"acq-tableau","date":"2019-08-01","date_label":"2019","lane":"Acquisitions","short":"Tableau","title":"Tableau","amount":15.7,"unit":"$B","status":"confirmed","detail":"Analytics, $15.7B (one source says $15.3B).","source":"Seedtable / Ascendix deal lists"},{"id":"G01","date":"2020-03-11","date_label":"Mar 11, 2020","lane":"World","short":"WHO characterizes COVID-19 as a pandemic","title":"WHO characterizes COVID-19 as a pandemic","amount":null,"unit":"","status":"reported","detail":"At a media briefing on 2020-03-11 the WHO Director-General said COVID-19 could be characterized as a pandemic.","source":"who.int"},{"id":"L06","date":"2020-05-04","date_label":"May 4, 2020","lane":"Products","short":"Work.com","title":"Work.com","amount":null,"unit":"","status":"reported","detail":"Salesforce announced Work.com, a set of apps (Command Center, Shift Management, Employee Wellness, Emergency Response Management) to help organizations reopen workplaces safely; most components were due in May to June 2020.","source":"salesforce.com"},{"id":"R03","date":"2020-08-24","date_label":"Aug 24, 2020","lane":"Records","short":"Named to the Dow Jones Industrial Average","title":"Named to the Dow Jones Industrial Average","amount":null,"unit":"","status":"reported","detail":"S&P Dow Jones Indices announced on 2020-08-24 that Salesforce (NYSE: CRM) would replace Exxon Mobil in the DJIA, effective before the open on 2020-08-31 (alongside Amgen and Honeywell, following Apple's 4-for-1 split). Date of announcement 2020-08-24; effective 2020-08-31.","source":"press.spglobal.com"},{"id":"G02","date":"2020-12-14","date_label":"Dec 14, 2020","lane":"World","short":"First COVID-19 vaccinations in the United States","title":"First COVID-19 vaccinations in the United States","amount":null,"unit":"","status":"reported","detail":"Vaccinations outside clinical trials began in the US on 2020-12-14 with the Pfizer-BioNTech vaccine (FDA emergency use authorization 2020-12-11); CDC monitoring of the first month starts on this date.","source":"cdc.gov"},{"id":"R02","date":"2021-02-25","date_label":"Feb 25, 2021","lane":"Records","short":"First $20B revenue year (FY21)","title":"First $20B revenue year (FY21)","amount":null,"unit":"","status":"reported","detail":"Q4 FY21 release: fiscal 2021 (ended 2021-01-31) revenue of $21.25B, up 24% Y/Y (24% constant currency); cRPO approx. $18.0B, up 20%; operating cash flow $4.8B, up 11%.","source":"salesforce.com"},{"id":"acq-slack","date":"2021-07-21","date_label":"Jul 2021","lane":"Acquisitions","short":"Slack","title":"Slack","amount":27.7,"unit":"$B","status":"confirmed","detail":"Largest deal to date, about $27.7B, completed July 2021.","source":"Techila / Dealroom deal lists"},{"id":"L08","date":"2021-08-17","date_label":"Aug 17, 2021","lane":"Products","short":"Slack-First Customer 360","title":"Slack-First Customer 360","amount":null,"unit":"","status":"reported","detail":"First post-close integration announcement: Slack integrated into Sales, Service, Marketing and Analytics so Slack becomes the interface for Customer 360 apps; pilots slated for fall 2021.","source":"salesforce.com"},{"id":"G03","date":"2022-03-16","date_label":"Mar 16, 2022","lane":"World","short":"US Federal Reserve begins raising interest rates","title":"US Federal Reserve begins raising interest rates","amount":null,"unit":"","status":"reported","detail":"The FOMC raised the federal funds target range to 1/4 to 1/2 percent on 2022-03-16, the first increase of the tightening cycle (vote 8-1).","source":"federalreserve.gov"},{"id":"s-buyback22","date":"2022-08-31","date_label":"Aug 31, 2022","lane":"Capital","short":"First buyback","title":"First buyback: $10B authorization","amount":10,"unit":"$B","status":"reported","detail":"The board authorized the first share repurchase program, $10B (FY24 10-K).","source":"SEC FY24 10-K"},{"id":"L09","date":"2022-09-20","date_label":"Sep 20, 2022","lane":"Products","short":"Genie (now Data Cloud)","title":"Genie (now Data Cloud)","amount":null,"unit":"","status":"reported","detail":"Announced at Dreamforce 2022 as a hyperscale real-time data platform for Customer 360; the release states it was generally available the same day. Renamed Genie Customer Data Cloud in Dec 2022, then Data Cloud, later Data 360.","source":"salesforce.com"},{"id":"G04","date":"2022-11-30","date_label":"Nov 30, 2022","lane":"World","short":"ChatGPT released to the public","title":"ChatGPT released to the public","amount":null,"unit":"","status":"reported","detail":"OpenAI released ChatGPT as a free research preview on 2022-11-30. Date taken from an OpenAI-published usage paper; the announcement page itself is the source URL.","source":"openai.com"},{"id":"cap-auth23","date":"2023-02-28","date_label":"Feb 28, 2023","lane":"Capital","short":"+$10B","title":"Buyback authorization raised to $20B","amount":10,"unit":"$B","status":"reported","detail":"The board raised the buyback authorization by $10B, to $20B.","source":"SEC FY24 10-K"},{"id":"R04","date":"2023-03-01","date_label":"Mar 1, 2023","lane":"Records","short":"First $30B revenue year (FY23)","title":"First $30B revenue year (FY23)","amount":null,"unit":"","status":"reported","detail":"Q4 FY23 release: fiscal 2023 (ended 2023-01-31) revenue $31.35B (headline $31.4B), up 18% Y/Y, 22% constant currency; operating cash flow $7.1B, up 19%, which the CEO called 'the highest cash flow in our company's history'; cRPO $24.6B; buyback authorization raised to $20B.","source":"salesforce.com"},{"id":"L10","date":"2023-03-07","date_label":"Mar 7, 2023","lane":"Products","short":"Einstein GPT","title":"Einstein GPT","amount":null,"unit":"","status":"reported","detail":"Salesforce announced Einstein GPT, billed as the first generative AI for CRM, drawing on Data Cloud and partner models (including OpenAI); available only in closed pilot at announcement.","source":"salesforce.com"},{"id":"G05","date":"2023-03-14","date_label":"Mar 14, 2023","lane":"World","short":"OpenAI releases GPT-4","title":"OpenAI releases GPT-4","amount":null,"unit":"","status":"reported","detail":"OpenAI announced GPT-4, a multimodal model accepting image and text inputs, available via ChatGPT and a waitlisted API on 2023-03-14.","source":"openai.com"},{"id":"L11","date":"2023-09-12","date_label":"Sep 12, 2023","lane":"Products","short":"Einstein 1 Platform","title":"Einstein 1 Platform","amount":null,"unit":"","status":"reported","detail":"Dreamforce 2023 launch of the Einstein 1 Platform, joining Data Cloud, AI and CRM on a metadata-based platform with the Einstein Trust Layer.","source":"salesforce.com"},{"id":"L12","date":"2024-02-14","date_label":"Feb 14, 2024","lane":"Products","short":"Slack AI","title":"Slack AI","amount":null,"unit":"","status":"reported","detail":"Salesforce rolled out Slack AI, adding generative AI search answers, channel recaps and thread summaries inside Slack (paid add-on for Enterprise plans first; all paid plans in April 2024).","source":"salesforce.com"},{"id":"s-dividend","date":"2024-02-28","date_label":"Feb 2024","lane":"Capital","short":"First dividend","title":"First dividend ($0.40) and buyback raised to $30B","amount":30,"unit":"$B","status":"reported","detail":"First quarterly dividend, $0.40 a share, declared Feb 28, 2024. The buyback authorization rose by $10B, to $30B.","source":"SEC FY24 and FY25 10-Ks"},{"id":"G07","date":"2024-09-18","date_label":"Sep 18, 2024","lane":"World","short":"US Federal Reserve makes its first rate cut of the easing cycle","title":"US Federal Reserve makes its first rate cut of the easing cycle","amount":null,"unit":"","status":"reported","detail":"The FOMC lowered the federal funds target range by 0.5 percentage point to 4-3/4 to 5 percent on 2024-09-18.","source":"federalreserve.gov"},{"id":"L13","date":"2024-10-25","date_label":"Oct 25, 2024","lane":"Products","short":"Agentforce launches","title":"Agentforce launches","amount":null,"unit":"","status":"reported","detail":"Agentforce, Salesforce's platform for autonomous AI agents (first out-of-box agent: Agentforce Service Agent), was unveiled on 2024-09-12 with GA set for 2024-10-25; the GA press release 'Agentforce Is Here' is dated 2024-10-29.","source":"salesforce.com"},{"id":"s-own","date":"2024-11-18","date_label":"Nov 18, 2024","lane":"Acquisitions","short":"Own","title":"Own Company","amount":1.9,"unit":"$B","status":"reported","detail":"Data backup and recovery for about $1.9B in cash. Announced Sep 5, 2024; completed Nov 18, 2024.","source":"Salesforce press release; TechCrunch"},{"id":"L14","date":"2024-12-17","date_label":"Dec 17, 2024","lane":"Products","short":"Agentforce 2.0","title":"Agentforce 2.0","amount":null,"unit":"","status":"reported","detail":"Second major Agentforce release, positioned as a digital labor platform with a new agent skills library and deeper Slack integration.","source":"salesforce.com"},{"id":"R06","date":"2025-05-28","date_label":"May 28, 2025","lane":"Records","short":"Data Cloud and AI ARR passes $1B","title":"Data Cloud and AI ARR passes $1B","amount":null,"unit":"","status":"reported","detail":"Q1 FY26 release: Data Cloud and AI annual recurring revenue over $1B, up more than 120% Y/Y; Data Cloud ingested 22 trillion records in the quarter (up 175%); over 8,000 Agentforce deals closed since launch, half paid.","source":"salesforce.com"},{"id":"L15","date":"2025-06-23","date_label":"Jun 23, 2025","lane":"Products","short":"Agentforce 3","title":"Agentforce 3","amount":null,"unit":"","status":"reported","detail":"Agentforce 3 added visibility and control for scaling AI agents (the release title cites 'Visibility and Control' as the blockers it targets).","source":"salesforce.com"},{"id":"L16","date":"2025-10-13","date_label":"Oct 13, 2025","lane":"Products","short":"Agentforce 360","title":"Agentforce 360","amount":null,"unit":"","status":"reported","detail":"Dreamforce 2025 announcement of Agentforce 360 as the Salesforce platform for the 'Agentic Enterprise', stated as generally available in the release.","source":"salesforce.com"},{"id":"acq-informatica","date":"2025-11-18","date_label":"Nov 2025","lane":"Acquisitions","short":"Informatica","title":"Informatica","amount":8.0,"unit":"$B","status":"confirmed","detail":"Data management, about $8B equity value ($9.6B purchase consideration per one SEC-based summary). Contributing $456M of Q2 FY27 revenue.","source":"Q2 FY27 release; Dealroom"},{"id":"R07","date":"2025-12-03","date_label":"Dec 3, 2025","lane":"Records","short":"Agentforce ARR passes $0.5B","title":"Agentforce ARR passes $0.5B","amount":null,"unit":"","status":"reported","detail":"Q3 FY26 release: Agentforce and Data 360 ARR nearly $1.4B, up 114% Y/Y; Agentforce ARR surpassed $0.5B, up 330%; RPO $59.5B (up 12%); cRPO $29.4B (up 11%); over 9,500 paid Agentforce deals; Informatica acquisition completed.","source":"salesforce.com"},{"id":"cap-auth26","date":"2026-02-25","date_label":"Feb 2026","lane":"Capital","short":"$50B auth.","title":"$50B buyback authorization, dividend to $0.44","amount":50,"unit":"$B","status":"confirmed","detail":"Replaces all unused authorizations. Quarterly dividend up 5.8% Y/Y.","source":"Q4 FY26 release"},{"id":"R08","date":"2026-02-25","date_label":"Feb 25, 2026","lane":"Records","short":"First $40B revenue year (FY26)","title":"First $40B revenue year (FY26)","amount":null,"unit":"","status":"reported","detail":"Q4 FY26 release: FY26 (ended 2026-01-31) revenue $41.5B, up 10% Y/Y (9% CC), including $399M Informatica contribution; operating cash flow $15.0B, up 15%; free cash flow $14.4B, up 16%.","source":"salesforce.com"},{"id":"R10","date":"2026-02-25","date_label":"Feb 25, 2026","lane":"Records","short":"Agentforce ARR $0.8B","title":"Agentforce ARR $0.8B","amount":null,"unit":"","status":"reported","detail":"Q4 FY26 release: Agentforce ARR $800M, up 169% Y/Y; combined ARR exceeds $2.9B (includes $1.1B Informatica Cloud ARR); over 29,000 Agentforce deals closed; $50B repurchase authorization; quarterly dividend raised 5.8% to $0.44; FY26 shareholder returns $14.3B.","source":"salesforce.com"},{"id":"cap-asr","date":"2026-03-16","date_label":"Mar 2026","lane":"Capital","short":"$25B buyback","title":"$25B accelerated buyback, debt-funded","amount":25,"unit":"$B","status":"confirmed","detail":"Funded by $25B of senior notes (eight tranches, 2028 to 2066) and a $6B term loan refinancing. FY27 cash flow growth guidance cut from 9-10% to 4-5%.","source":"SEC 8-K; Motley Fool; Investing.com"},{"id":"acq-qualified","date":"2026-04-15","date_label":"Apr 2026","lane":"Acquisitions","short":"Qualified","title":"Qualified","amount":1.2,"unit":"$B","status":"reported","detail":"Reported at about $1.2B, mainly cash. Price not stated in Salesforce's own release.","source":"Navirum 2026 deal roundup"},{"id":"L18","date":"2026-04-15","date_label":"Apr 15, 2026","lane":"Products","short":"Headless 360","title":"Headless 360","amount":null,"unit":"","status":"reported","detail":"Introduced at TDX 2026: Salesforce capabilities exposed as APIs, MCP tools and CLI commands (60+ new MCP tools, 30+ coding skills) so agents can use the platform without a browser.","source":"salesforce.com"},{"id":"R11","date":"2026-05-27","date_label":"May 27, 2026","lane":"Records","short":"Agentforce ARR $1.2B","title":"Agentforce ARR $1.2B","amount":null,"unit":"","status":"reported","detail":"Q1 FY27 release: Agentforce ARR $1.2B, up 205% Y/Y; combined ARR nearly $3.4B, up over 200%; cRPO $33.6B, up 14%; revenue $11.1B, up 13%; operating cash flow $6.7B, up 3%.","source":"salesforce.com"},{"id":"acq-contentful","date":"2026-06-15","date_label":"Jun 2026","lane":"Acquisitions","short":"Contentful","title":"Contentful","amount":1.5,"unit":"$B","status":"reported","detail":"Announced June 2026, reported at about $1.5B. Expected to close in Q3 FY27.","source":"Q2 FY27 release; Navirum"},{"id":"R12","date":"2026-08-26","date_label":"Aug 26, 2026","lane":"Records","short":"Agentforce ARR above $1.5B","title":"Agentforce ARR above $1.5B","amount":null,"unit":"","status":"reported","detail":"Q2 FY27 release: Agentforce ARR exceeded $1.5B, up over 240% Y/Y (definition now includes Slackbot and Headless 360); combined ARR nearly $3.9B, up over 210%; cRPO $33.5B, up 14%; revenue $11.3B, up 11%; 7.0B Agentic Work Units delivered to date.","source":"salesforce.com"},{"id":"L19","date":"2026-09-15","date_label":"Sep 15, 2026","lane":"Products","short":"AIforce","title":"AIforce","amount":null,"unit":"","status":"reported","detail":"Unveiled at Dreamforce 2026: a live interface layer bringing Salesforce data, workflows and governance to any AI interface, launching with Salesforce in Claude (beta), Slackforce and Agentforce Coworker; Salesforce also introduced Koa, its first CRM-specific reasoning model built on NVIDIA Nemotron 3 Super (pilot).","source":"salesforce.com"},{"id":"acq-fin","date":"2026-10-01","date_label":"Q3 FY27","lane":"Acquisitions","short":"Fin","title":"Fin (formerly Intercom)","amount":3.6,"unit":"$B","status":"reported","detail":"Reported at about $3.6B. Salesforce granted inducement equity awards to Fin and m3ter employees on Oct 23, 2026, which indicates both deals had closed by then.","source":"Q2 FY27 release; Navirum; Business Wire"},{"id":"acq-braze","date":"2026-10-20","date_label":"Oct 2026","lane":"Acquisitions","short":"Braze","title":"Braze (pending)","amount":5.66,"unit":"$B","status":"pending","detail":"About $5.66B enterprise value, the largest deal announced in 2026. Fast Company reported it around Oct 20, 2026, with Braze shares jumping about 50%. Pending.","source":"Navirum; Fast Company via StockAnalysis news"},{"id":"acq-m3ter","date":"2026-10-23","date_label":"By Oct 23, 2026","lane":"Acquisitions","short":"m3ter","title":"m3ter","amount":null,"unit":"$B","status":"reported","detail":"Salesforce granted inducement equity awards to m3ter and Fin employees on Oct 23, 2026 (Business Wire), which indicates the deal had closed. Price not found.","source":"Business Wire via StockAnalysis news"},{"id":"acq-rune","date":"2026-10-30","date_label":"Oct 30, 2026","lane":"Acquisitions","short":"Rune","title":"Rune","amount":0.375,"unit":"$B","status":"reported","detail":"Defense tech startup, reported at about $375M.","source":"TechCrunch via StockAnalysis news"}],"guide":{"rev":46.25,"gaap_om":20.1,"ng_om":34.3,"gaap_eps":10.23,"ng_eps":16.69,"ocf":15.67,"fcf":15.05}};
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (id) { return document.getElementById(id); };
+  var utc = function (s) { return Date.parse(s + 'T00:00:00Z'); };
+  var DAY = 864e5;
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  var mon = function (ms) { var d = new Date(ms); return MON[d.getUTCMonth()] + ' ' + d.getUTCFullYear(); };
+  var monLong = function (ms) { var d = new Date(ms); return MON[d.getUTCMonth()].charAt(0) + MON[d.getUTCMonth()].slice(1).toLowerCase() + ' ' + d.getUTCFullYear(); };
+  var money = function (b) { return b < 1 ? '$' + Math.round(b * 1000) + 'M' : '$' + (+b.toFixed(2)) + 'B'; };
+
+  /* ---------- acts and scenes ---------- */
+  var ACTS = [
+    { id: 1, name: 'Growing the platform', yrs: '2015 to 2020', a: '2015-02-01', b: '2020-01-31' },
+    { id: 2, name: 'The digital surge', yrs: '2020 to 2021', a: '2020-02-01', b: '2021-12-31' },
+    { id: 3, name: 'The profit step-up', yrs: '2022 to 2024', a: '2022-01-01', b: '2024-01-31' },
+    { id: 4, name: 'Dividends and records', yrs: '2024 to 2025', a: '2024-02-01', b: '2025-09-30' },
+    { id: 5, name: 'Agentic AI', yrs: '2025 on', a: '2025-10-01', b: '2026-11-20' }
+  ];
+  ACTS.forEach(function (x) { x.A = utc(x.a); x.B = utc(x.b); });
+
+  var SC = [
+    { a: '2015-01-30', b: '2016-02-15', dur: 5, act: 1, title: 'Growth is the product',
+      body: 'Salesforce starts 2015 with $5.4B of annual revenue. A year later it is $6.7B, up 24%. In August 2015 Lightning Experience gives the platform a new interface.', big: ['+24%', 'revenue growth, FY16'], ev: ['L01'] },
+    { a: '2016-02-15', b: '2016-12-15', dur: 4, act: 1, title: 'Commerce and the first AI',
+      body: 'Demandware, $2.8B, closes on July 11, 2016 and becomes Commerce Cloud. In September, Einstein puts artificial intelligence across the product line.', ev: ['s-demandware', 'L03'] },
+    { a: '2016-12-15', b: '2018-04-15', dur: 4, act: 1, title: 'Past $10 billion',
+      body: 'Revenue grows 26% to $8.4B in FY17 and 25% to $10.5B in FY18, the first year above $10B. The non-GAAP operating margin climbs from 13.2% to 14.5%.', big: ['$10.5B', 'FY18 revenue'], ev: ['L04', 'R01'] },
+    { a: '2018-04-15', b: '2018-12-15', dur: 3, act: 1, title: 'MuleSoft and Customer 360',
+      body: 'MuleSoft, about $6.5B, joins in May. In September Salesforce announces Customer 360, a way to connect its clouds around a single view of the customer.', ev: ['acq-mulesoft', 'L05'] },
+    { a: '2018-12-15', b: '2019-07-15', dur: 3, act: 1, title: 'A $13 billion company',
+      body: 'FY19 revenue reaches $13.3B, up 27%. The non-GAAP operating margin rises to 17.1% from 14.5%, and the GAAP margin to 4.0%.', big: ['+27%', 'revenue growth, FY19'], ev: [] },
+    { a: '2019-07-15', b: '2019-12-01', dur: 4, act: 1, title: 'Tableau joins',
+      body: 'Tableau arrives for about $15.7B. FY20 revenue grows 29% to $17.1B, the fastest rate of the fiscal years shown.', big: ['+29%', 'revenue growth, FY20'], ev: ['acq-tableau'] },
+
+    { a: '2019-12-01', b: '2020-07-31', dur: 4, act: 2, title: 'The world moves online',
+      body: 'The WHO characterizes COVID-19 as a pandemic on March 11, 2020. In May Salesforce launches Work.com. FY21 revenue still grows 24%.', ev: ['G01', 'L06'] },
+    { a: '2020-07-31', b: '2020-12-31', dur: 3, act: 2, title: 'Into the Dow',
+      body: 'Salesforce is named to the Dow Jones Industrial Average in August 2020, replacing Exxon Mobil. In December the first COVID-19 vaccinations begin in the United States.', big: ['Dow Jones', 'joins the Industrial Average, Aug 2020'], ev: ['R03', 'G02'] },
+    { a: '2020-12-31', b: '2021-12-31', dur: 5, act: 2, title: 'First $20B year, then Slack',
+      body: 'FY21 revenue is $21.3B, up 24%, the first year above $20B. Slack closes in July 2021 at about $27.7B, the largest deal in company history, and Slack-First Customer 360 follows in August.', big: ['$27.7B', 'Slack'], ev: ['R02', 'acq-slack', 'L08'] },
+
+    { a: '2021-12-31', b: '2022-07-31', dur: 3, act: 3, title: 'A $26 billion year',
+      body: 'FY22 revenue reaches $26.5B, up 25%. The Federal Reserve starts raising interest rates in March 2022.', big: ['$26.5B', 'FY22 revenue'], ev: ['G03'] },
+    { a: '2022-07-31', b: '2023-01-31', dur: 5, act: 3, title: 'Data Cloud and the first buyback',
+      body: 'On Aug 31 the board authorizes a first buyback, $10B. In September Genie, later renamed Data Cloud, launches. In November ChatGPT reaches the public.', big: ['$10B', 'first buyback authorization'], ev: ['s-buyback22', 'L09', 'G04'] },
+    { a: '2023-01-31', b: '2024-01-31', dur: 6, act: 3, title: 'The margin step-up',
+      body: 'FY23 revenue is $31.4B, up 18%, with the highest operating cash flow to that point, $7.1B. In March Einstein GPT launches and GPT-4 is released; Einstein 1 follows in September. In FY24 the GAAP operating margin jumps to 14.4% from 3.3%, and the non-GAAP margin to 30.5%.', big: ['3.3% to 14.4%', 'GAAP operating margin, FY23 to FY24'], ev: ['cap-auth23', 'R04', 'L10', 'G05', 'L11'] },
+
+    { a: '2024-01-31', b: '2024-06-30', dur: 3, act: 4, title: 'Slack AI and the first dividend',
+      body: 'Slack AI launches on Feb 14, 2024. On Feb 28 Salesforce declares its first dividend, $0.40 a share, and raises the buyback authorization by $10B, to $30B.', ev: ['L12', 's-dividend'] },
+    { a: '2024-06-30', b: '2025-02-28', dur: 5, act: 4, title: 'Agentforce arrives',
+      body: 'Agentforce is announced on Sep 12 and reaches general availability on Oct 25, 2024; Agentforce 2.0 follows in December. FY25 revenue is $37.9B, with a 33.0% non-GAAP operating margin and $13.1B of operating cash flow.', big: ['$37.9B', 'FY25 revenue'], ev: ['G07', 'L13', 'L14'] },
+    { a: '2025-02-28', b: '2025-09-30', dur: 4, act: 4, title: 'Data and AI revenue passes $1B',
+      body: 'In May, annual recurring revenue from Data Cloud and AI passes $1B. Agentforce 3 launches in June.', big: ['$1B+', 'Data Cloud and AI ARR, May 2025'], ev: ['R06', 'L15'] },
+
+    { a: '2025-09-30', b: '2026-03-10', dur: 5, act: 5, title: 'A $41.5 billion year',
+      body: 'Agentforce 360 launches in October and Informatica, about $8B, closes in November. Agentforce ARR passes $0.5B in December and reaches $0.8B in February. FY26 revenue is $41.5B, the first year above $40B, with $15.0B of operating cash flow and $14.4B of free cash flow. A new $50B buyback authorization follows on Feb 25.', big: ['$41.5B', 'FY26 revenue'], ev: ['L16', 'acq-informatica', 'R07', 'R08', 'R10', 'cap-auth26'] },
+    { a: '2026-03-10', b: '2026-04-30', dur: 4, act: 5, title: 'A $25 billion buyback',
+      body: 'On Mar 16 Salesforce pays $25B for an accelerated share repurchase, funded by new notes, and the banks deliver 103M shares up front. In April it launches Headless 360 and adds Qualified, about $1.2B.', big: ['$25B', 'accelerated buyback, March 16'], ev: ['cap-asr', 'L18', 'acq-qualified'] },
+    { a: '2026-04-30', b: '2026-09-30', dur: 5, act: 5, title: 'Agentforce passes $1.5 billion',
+      body: 'Agentforce ARR reaches $1.2B in May and passes $1.5B on Aug 26, when Agentforce and Data 360 together reach nearly $3.9B. First-half FY27 revenue is $22.5B with a 34.5% non-GAAP operating margin. AIforce launches in September.', big: ['$1.5B+', 'Agentforce ARR, August 2026'], ev: ['R11', 'acq-contentful', 'R12', 'L19'] },
+    { a: '2026-09-30', b: '2026-11-20', dur: 6, act: 5, title: 'Where it stands',
+      body: 'The FY27 guide is $46.1B to $46.4B of revenue, up 11% to 12%, with a 34.3% non-GAAP operating margin and 20.1% GAAP. Fin is added and Braze, about $5.7B, is pending. Q3 results are due Dec 2.',
+      big: ['$46B+', 'FY27 revenue guide'], ev: ['acq-fin', 'acq-braze'] }
+  ];
+  var total = 0;
+  SC.forEach(function (s) { s.A = utc(s.a); s.B = utc(s.b); s.start = total; total += s.dur; });
+  var T0 = SC[0].A, T1 = SC[SC.length - 1].B;
+
+  /* ---------- data ---------- */
+  var EV = D.events.map(function (e) { e.t = utc(e.date); return e; });
+  var evById = {}; EV.forEach(function (e) { evById[e.id] = e; });
+  var MC = D.mcap.map(function (r) { return [utc(r[0]), r[1]]; });
+  function ser(key) {
+    var pts = D.fy.filter(function (r) { return r[key] != null; }).map(function (r) { return [utc(r.date), r[key]]; });
+    if (D.guide[key] != null) pts.push([utc('2027-01-31'), D.guide[key]]);
+    return pts;
+  }
+  var REV = ser('rev'), GOM = ser('gaap_om'), NGOM = ser('ng_om'), GEPS = ser('gaap_eps'), NGEPS = ser('ng_eps'), OCF = ser('ocf'), FCF = ser('fcf');
+  var GR = []; for (var gi = 1; gi < REV.length; gi++) GR.push([REV[gi][0], (REV[gi][1] / REV[gi - 1][1] - 1) * 100]);
+  var ARR = [['2025-12-03', 0.5], ['2026-02-25', 0.8], ['2026-05-27', 1.2], ['2026-08-26', 1.5]].map(function (r) { return [utc(r[0]), r[1]]; });
+  function interp(arr, t) {
+    if (t <= arr[0][0]) return arr[0][1];
+    if (t >= arr[arr.length - 1][0]) return arr[arr.length - 1][1];
+    for (var i = 1; i < arr.length; i++) {
+      if (t <= arr[i][0]) { var a = arr[i - 1], b = arr[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); }
+    }
+    return arr[arr.length - 1][1];
+  }
+  function interpN(arr, t) { return t < arr[0][0] ? null : interp(arr, t); }
+  var BUY = [['2022-08-30', '2023-01-31', 4.0], ['2023-02-01', '2024-01-31', 7.6], ['2024-02-01', '2025-01-31', 7.829], ['2025-02-01', '2026-01-31', 12.596], ['2026-02-01', '2026-07-31', 2.332]]
+    .map(function (x) { return [utc(x[0]), utc(x[1]), x[2]]; });
+  var ASR_T = utc('2026-03-16');
+  function buyCum(t) {
+    var c = 0; BUY.forEach(function (x) { c += x[2] * clamp((t - x[0]) / (x[1] - x[0]), 0, 1); });
+    return c + 25 * clamp((t - ASR_T) / (10 * DAY), 0, 1);
+  }
+  var FY26 = utc('2026-01-31');
+  var TILES = [
+    { id: 'rev', chart: 'rev', label: 'Revenue', fmt: function (v) { return '$' + v.toFixed(1) + 'B'; }, f: function (t) { return interp(REV, t); },
+      lx: function (t) { var g = interpN(GR, t); return g === null ? '' : '+' + g.toFixed(0) + '%'; }, est: function (t) { return t > FY26; },
+      sub: function (t) { return 'Yearly revenue and growth on the prior fiscal year.' + (t > FY26 ? ' After Jan 2026 the value glides toward the FY27 guide; it is not a reported result.' : ' Fiscal-year results.'); } },
+    { id: 'ngopm', chart: 'opm', label: 'Non-GAAP margin', fmt: function (v) { return v.toFixed(1) + '%'; }, f: function (t) { return interp(NGOM, t); },
+      lx: function (t) { return 'GAAP ' + interp(GOM, t).toFixed(1) + '%'; }, est: function (t) { return t > FY26; },
+      sub: function (t) { return 'Non-GAAP operating margin, company definition (it changed over time). GAAP operating margin shown beside the label.' + (t > FY26 ? ' After Jan 2026 the value glides toward the FY27 guide; it is not a reported result.' : ''); } },
+    { id: 'ocf', chart: 'cash', label: 'Operating cash flow', fmt: function (v) { return '$' + v.toFixed(1) + 'B'; }, f: function (t) { return interp(OCF, t); }, est: function (t) { return t > FY26; },
+      sub: function (t) { return t > FY26 ? 'After Jan 2026 the value glides toward the FY27 guide (cash flow growth of 4% to 5%); it is not a reported result.' : 'From the cash flow statements.'; } },
+    { id: 'ngeps', chart: 'eps', label: 'Non-GAAP EPS', fmt: function (v) { return '$' + v.toFixed(2); }, f: function (t) { return interp(NGEPS, t); }, est: function (t) { return t > FY26; },
+      sub: function (t) { return t > FY26 ? 'After Jan 2026 the value glides toward the FY27 guide, which includes gains on investments; it is not a reported result.' : 'Diluted, company definition.'; } },
+    { id: 'buy', chart: 'buy', label: 'Buybacks since 2022', fmt: function (v) { return '$' + v.toFixed(1) + 'B'; }, f: buyCum,
+      sub: function (t) { return t < utc('2025-02-01') ? 'FY23 and FY24 amounts are recalled.' : 'From the cash flow statements.'; } }
+  ];
+
+  /* ---------- clock ---------- */
+  function sceneIndexAt(pos) {
+    for (var i = 0; i < SC.length; i++) { if (pos < SC[i].start + SC[i].dur) return i; }
+    return SC.length - 1;
+  }
+  function dateAt(pos) {
+    pos = clamp(pos, 0, total);
+    var s = SC[sceneIndexAt(pos)];
+    var f = clamp((pos - s.start) / s.dur, 0, 1);
+    return s.A + (s.B - s.A) * f;
+  }
+  function actAtDate(t) { for (var i = ACTS.length - 1; i >= 0; i--) { if (t >= ACTS[i].A) return ACTS[i]; } return ACTS[0]; }
+
+  /* ---------- state ---------- */
+  var st = { mode: 'auto', pos: total, playing: false, speed: 1, done: true, scene: -1, act: -1, last: 0, W: 0, H: 0 };
+
+  /* ---------- chart ---------- */
+  var box = $('chartbox'), svg = d3.select('#chart'), svgNode = $('chart'), tip = $('tip');
+  var G = {};
+  var LANES = ['Products', 'Acquisitions', 'Records', 'Capital', 'World'];
+  var LCOL = { 'Products': 'var(--accent)', 'Acquisitions': 'var(--violet)', 'Records': 'var(--gold)', 'Capital': 'var(--teal)', 'World': 'var(--muted)' };
+  var LSHORT = { 'Products': 'Products', 'Acquisitions': 'Deals', 'Records': 'Records', 'Capital': 'Capital', 'World': 'World' };
+  var fB = function (v) { return '$' + v.toFixed(1) + 'B'; }, fP = function (v) { return v.toFixed(1) + '%'; }, fD = function (v) { return '$' + v.toFixed(2); };
+  var BUYSER = []; for (var bt = utc('2022-08-30'); bt <= T1; bt += 15 * DAY) BUYSER.push([bt, buyCum(bt)]); BUYSER.push([T1, buyCum(T1)]);
+  var METRICS = {
+    rev: { label: 'Revenue and growth', y: [0, 50], ticks: [0, 10, 20, 30, 40, 50], tickFmt: function (v) { return '$' + v + 'B'; }, growth: true, fy: true,
+      series: [{ name: 'Revenue', color: 'var(--accent)', data: REV, fmt: fB }],
+      calls: [{ d: '2018-02-28', t: 'First $10B year' }, { d: '2021-02-25', t: 'First $20B year' }, { d: '2023-03-01', t: 'First $30B year' }, { d: '2026-02-25', t: 'First $40B year' }] },
+    opm: { label: 'Operating margin: GAAP and non-GAAP', y: [-5, 40], ticks: [0, 10, 20, 30, 40], tickFmt: function (v) { return v + '%'; }, fy: true,
+      series: [{ name: 'GAAP', color: 'var(--accent)', data: GOM, fmt: fP }, { name: 'Non-GAAP', color: 'var(--teal)', data: NGOM, fmt: fP }],
+      calls: [{ d: '2023-01-31', t: 'FY23: non-GAAP 22.5%', s: 1 }, { d: '2024-01-31', t: 'FY24: GAAP 14.4%, non-GAAP 30.5%', s: 1 }, { d: '2026-01-31', t: 'FY26: GAAP 20.1%, non-GAAP 34.1%', s: 1 }] },
+    cash: { label: 'Operating and free cash flow', y: [0, 18], ticks: [0, 5, 10, 15], tickFmt: function (v) { return '$' + v + 'B'; }, fy: true,
+      series: [{ name: 'Operating cash flow', color: 'var(--accent)', data: OCF, fmt: fB }, { name: 'Free cash flow (from FY25)', color: 'var(--teal)', data: FCF, fmt: fB }],
+      calls: [{ d: '2023-01-31', t: 'FY23: $7.1B' }, { d: '2024-01-31', t: 'FY24: $10.2B, up 44%' }, { d: '2026-01-31', t: 'FY26: $15.0B operating, $14.4B free' }] },
+    eps: { label: 'Earnings per share: GAAP and non-GAAP', y: [-1, 18], ticks: [0, 5, 10, 15], tickFmt: function (v) { return '$' + v; }, fy: true,
+      series: [{ name: 'GAAP', color: 'var(--accent)', data: GEPS, fmt: fD }, { name: 'Non-GAAP', color: 'var(--teal)', data: NGEPS, fmt: fD }],
+      calls: [{ d: '2021-01-31', t: 'FY21 GAAP includes a ~$2.0B tax benefit' }, { d: '2024-01-31', t: 'FY24: GAAP $4.20, non-GAAP $8.22', s: 1 }, { d: '2026-01-31', t: 'FY26: GAAP $7.80, non-GAAP $12.52', s: 1 }] },
+    buy: { label: 'Cumulative buybacks since Aug 2022', y: [0, 70], ticks: [0, 20, 40, 60], tickFmt: function (v) { return '$' + v + 'B'; },
+      note: 'Cumulative cash spent; each fiscal year is spread evenly across the year, and the $25B accelerated buyback over ten days.',
+      series: [{ name: 'Buybacks', color: 'var(--teal)', data: BUYSER, fmt: fB }],
+      calls: [{ d: '2022-08-31', t: 'First $10B authorization' }, { d: '2024-02-28', t: 'First dividend, authorization up to $30B' }, { d: '2026-03-26', t: '$25B accelerated buyback' }] }
+  };
+  var curMetric = 'rev';
+  var ASHORT = { 1: 'Platform', 2: 'Digital surge', 3: 'Profit step-up', 4: 'Dividends, records', 5: 'Agentic AI' };
+  var textW = function (s, px) { return s.length * (px || 6.3) + 4; };
+
+  /* tooltip */
+  function placeTip(ev) {
+    tip.hidden = false;
+    var r = box.getBoundingClientRect(), tx = ev.clientX - r.left + 14, ty = ev.clientY - r.top + 14;
+    if (tx + tip.offsetWidth > r.width - 4) tx = ev.clientX - r.left - tip.offsetWidth - 14;
+    if (ty + tip.offsetHeight > r.height - 4) ty = ev.clientY - r.top - tip.offsetHeight - 14;
+    tip.style.left = Math.max(4, tx) + 'px'; tip.style.top = Math.max(4, ty) + 'px';
+  }
+  function showTipText(ev, title, lines, tcol) {
+    tip.replaceChildren();
+    var b = document.createElement('b'); b.textContent = title; if (tcol) b.style.color = tcol; tip.appendChild(b);
+    lines.forEach(function (l) {
+      if (!l) return;
+      var d = document.createElement('div');
+      if (typeof l === 'string') d.textContent = l; else { d.textContent = l[0]; d.style.color = l[1]; d.style.fontWeight = '500'; }
+      tip.appendChild(d);
+    });
+    placeTip(ev);
+  }
+  function hideHover() { tip.hidden = true; if (G.hov) G.hov.style('opacity', 0); }
+
+  function posAtDate(t) {
+    t = clamp(t, T0, T1);
+    for (var i = 0; i < SC.length; i++) {
+      if (t <= SC[i].B || i === SC.length - 1) return SC[i].start + clamp((t - SC[i].A) / (SC[i].B - SC[i].A), 0, 1) * SC[i].dur;
+    }
+    return total;
+  }
+  function seekToDate(t) {
+    st.pos = Math.min(posAtDate(t), total - 0.06); st.done = false;
+    setPlaying(st.playing);
+    frame(performance.now(), true);
+  }
+
+  function build() {
+    var M = METRICS[curMetric];
+    var W = Math.max(300, box.clientWidth), H = Math.max(200, box.clientHeight), narrow = W < 560;
+    st.W = W; st.H = H;
+    var NL = LANES.length, axisH = 22;
+    var laneH = clamp(Math.floor(H * 0.27 / NL), 14, 25);
+    var maxLvl = narrow ? 0 : (H < 300 ? 2 : 3);
+    var topStrip = narrow ? 22 : 30 + (maxLvl - 1) * 13 + 8;
+    var Ml = narrow ? 14 : 72, Mr = narrow ? 12 : 28;
+    var rib0 = H - axisH - NL * laneH - 4;
+    var plotTop = topStrip + 2, plotBot = rib0 - 14;
+    svg.attr('viewBox', '0 0 ' + W + ' ' + H).attr('width', W).attr('height', H).selectAll('*').remove();
+    svg.attr('aria-label', 'Animated ' + M.label.toLowerCase() + ' chart with an event ribbon underneath');
+    var x = d3.scaleUtc().domain([T0, T1 + 50 * DAY]).range([Ml, W - Mr]);
+    var y = d3.scaleLinear().domain(M.y).range([plotBot, plotTop]);
+    G = { x: x, y: y, W: W, H: H, plotTop: plotTop, plotBot: plotBot, rib0: rib0, ribBot: rib0 + NL * laneH, xL: Ml, xR: W - Mr, narrow: narrow, M: M, NL: NL, laneH: laneH };
+
+    var defs = svg.append('defs');
+    defs.append('clipPath').attr('id', 'clipv').append('rect').attr('id', 'clipr').attr('x', 0).attr('y', 0).attr('width', 0).attr('height', H);
+    var gr = defs.append('linearGradient').attr('id', 'areag').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
+    gr.append('stop').attr('offset', '0%').style('stop-color', M.series[0].color).style('stop-opacity', .4);
+    gr.append('stop').attr('offset', '100%').style('stop-color', M.series[0].color).style('stop-opacity', .02);
+
+    /* act bands with their names in a strip at the top */
+    ACTS.forEach(function (a, i) {
+      var x0 = x(Math.max(a.A, T0)), x1 = x(Math.min(a.B + DAY, T1 + 50 * DAY));
+      svg.append('rect').attr('x', x0).attr('y', 2).attr('width', x1 - x0).attr('height', H - axisH - 2).style('fill', i % 2 ? 'var(--band)' : 'transparent');
+      var avail = x1 - x0 - 12, cands = ['Act ' + a.id + ' · ' + a.name, 'Act ' + a.id + ' · ' + ASHORT[a.id], 'Act ' + a.id];
+      var nm = cands.filter(function (s) { return s.length * 6.1 <= avail; })[0] || cands[2];
+      svg.append('text').attr('class', 'band-label').attr('id', 'bl' + a.id).attr('x', x0 + 6).attr('y', 14).text(nm);
+    });
+    M.ticks.forEach(function (v, i) {
+      svg.append('line').attr('x1', Ml).attr('x2', W - Mr).attr('y1', y(v)).attr('y2', y(v)).style('stroke', v === 0 && M.y[0] < 0 ? 'var(--muted)' : 'var(--line)').style('stroke-width', 1);
+      if (!narrow || i > 0) svg.append('text').attr('x', Ml - 8).attr('y', y(v) + 4).attr('text-anchor', 'end').text(M.tickFmt(v));
+    });
+    var ya = svg.append('g').attr('transform', 'translate(0,' + (H - axisH + 4) + ')');
+    var step = narrow ? 3 : 1;
+    d3.utcYear.range(new Date(T0), new Date(T1)).forEach(function (d, i) {
+      if (i % step) return;
+      ya.append('text').attr('x', x(d.getTime())).attr('y', 13).attr('text-anchor', 'middle').text(d.getUTCFullYear());
+    });
+    var line = d3.line().x(function (d) { return x(d[0]); }).y(function (d) { return y(d[1]); });
+    var area = d3.area().x(function (d) { return x(d[0]); }).y0(plotBot).y1(function (d) { return y(d[1]); });
+    var cg = svg.append('g').attr('clip-path', 'url(#clipv)');
+    M.series.forEach(function (s, i) {
+      if (i === 0) cg.append('path').attr('d', area(s.data)).style('fill', 'url(#areag)');
+      var solid = M.fy ? s.data.slice(0, -1) : s.data;
+      cg.append('path').attr('d', line(solid)).style('fill', 'none').style('stroke', s.color).style('stroke-width', 2.4).style('stroke-linejoin', 'round');
+      if (M.fy) cg.append('path').attr('d', line(s.data.slice(-2))).style('fill', 'none').style('stroke', s.color).style('stroke-width', 2.4).style('stroke-dasharray', '5 4');
+    });
+    if (M.series.length > 1) {
+      M.series.forEach(function (s, i) {
+        var ly = plotTop + 12 + i * 16;
+        svg.append('rect').attr('x', Ml + 10).attr('y', ly - 4).attr('width', 12).attr('height', 3).attr('rx', 1.5).style('fill', s.color);
+        svg.append('text').attr('x', Ml + 28).attr('y', ly).style('fill', 'var(--fg)').style('font-weight', 600).text(s.name);
+      });
+    }
+
+    /* callouts: placed automatically so no label sits on another label or a leader line */
+    var cl = svg.append('g');
+    G.calls = [];
+    if (M.growth && !narrow) {
+      for (var gi2 = 1; gi2 < REV.length - 1; gi2++) {
+        var gt = REV[gi2][0], gv = REV[gi2][1], gx = x(gt), gy = y(gv), gg = cl.append('g').attr('class', 'callout');
+        gg.append('circle').attr('cx', gx).attr('cy', gy).attr('r', 3).style('fill', 'var(--panel)').style('stroke', 'var(--accent)').style('stroke-width', 1.5);
+        gg.append('text').attr('class', 'gl').attr('x', gx - 7).attr('y', gy - 8).attr('text-anchor', 'end').text('+' + Math.round((gv / REV[gi2 - 1][1] - 1) * 100) + '%');
+        G.calls.push({ t: gt, g: gg });
+      }
+    }
+    var placed = [];
+    function clash(c, p) {
+      var pad = 5;
+      if (c.ly === p.ly && c.x0 < p.x1 + pad && c.x1 + pad > p.x0) return true;
+      if (p.cx >= c.x0 - pad && p.cx <= c.x1 + pad && c.ly > p.ly && c.ly - 10 <= p.cy) return true;
+      if (c.cx >= p.x0 - pad && c.cx <= p.x1 + pad && p.ly > c.ly && p.ly - 10 <= c.cy) return true;
+      return false;
+    }
+    M.calls.slice().reverse().forEach(function (c) {
+      var ct = utc(c.d), sd = M.series[c.s || 0].data, val = c.v != null ? c.v : interp(sd, ct);
+      var cx = x(ct), cy = y(val);
+      var g = cl.append('g').attr('class', 'callout');
+      if (narrow) { g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 3).style('fill', 'var(--fg)'); G.calls.push({ t: ct, g: g }); return; }
+      var w = textW(c.t, 6.4), pick = null;
+      for (var l = 0; l < maxLvl && !pick; l++) {
+        var ly = 30 + l * 13;
+        [['start', cx + 5, cx + 5 + w], ['end', cx - 5 - w, cx - 5]].forEach(function (o) {
+          if (pick || o[1] < Ml || o[2] > W - Mr + 6) return;
+          var cand = { anchor: o[0], x0: o[1], x1: o[2], ly: ly, cx: cx, cy: cy };
+          if (!placed.some(function (p) { return clash(cand, p); })) pick = cand;
+        });
+      }
+      if (pick) {
+        placed.push(pick);
+        g.append('line').attr('x1', cx).attr('x2', cx).attr('y1', pick.ly + 3).attr('y2', cy - 5);
+        g.append('text').attr('x', pick.anchor === 'start' ? cx + 5 : cx - 5).attr('y', pick.ly).attr('text-anchor', pick.anchor).text(c.t);
+      }
+      g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 3.5).style('fill', 'var(--panel)').style('stroke', 'var(--fg)').style('stroke-width', 1.6);
+      G.calls.push({ t: ct, g: g });
+    });
+
+    /* event ribbon */
+    LANES.forEach(function (ln, i) {
+      var cy = rib0 + i * laneH + laneH / 2;
+      svg.append('line').attr('x1', Ml).attr('x2', W - Mr).attr('y1', cy).attr('y2', cy).style('stroke', 'var(--line)');
+      if (!narrow) svg.append('text').attr('class', 'lane-label').attr('x', Ml - 8).attr('y', cy + 4).attr('text-anchor', 'end').style('fill', LCOL[ln]).text(LSHORT[ln]);
+    });
+    var rAcq = d3.scaleSqrt().domain([0, 28]).range([3.5, 10]);
+    var laneIdx = {}; LANES.forEach(function (l, i) { laneIdx[l] = i; });
+    var lastT = {}, k = {};
+    var rg = svg.append('g');
+    G.evs = EV.map(function (e) {
+      var li = laneIdx[e.lane];
+      var cy0 = rib0 + li * laneH + laneH / 2;
+      if (lastT[e.lane] != null && e.t - lastT[e.lane] < 110 * DAY) k[e.lane]++; else k[e.lane] = 0;
+      lastT[e.lane] = e.t;
+      var off = [0, -(laneH * .26), laneH * .26, -(laneH * .38), laneH * .38][k[e.lane] % 5];
+      var r = e.lane === 'Acquisitions' && e.amount ? rAcq(e.amount) : e.lane === 'Capital' ? 5 : e.lane === 'World' ? 4 : 4.5;
+      r = Math.min(r, laneH / 2 - 1);
+      var est = ['recalled', 'unconfirmed', 'pending'].indexOf(e.status) >= 0;
+      var g = rg.append('g').attr('class', 'ev');
+      var cx = x(e.t), cy = cy0 + off, col = LCOL[e.lane];
+      g.append('circle').attr('class', 'ring').attr('cx', cx).attr('cy', cy).attr('r', r).style('stroke', col);
+      g.append('circle').attr('class', 'dot').attr('cx', cx).attr('cy', cy).attr('r', r)
+        .style('fill', est ? 'var(--panel)' : col).style('fill-opacity', est ? 1 : (e.status === 'reported' || e.status === 'stated' ? .62 : 1))
+        .style('stroke', col).style('stroke-width', est ? 1.6 : 1).style('stroke-dasharray', est ? '3 2' : 'none');
+      return { e: e, g: g, cx: cx, cy: cy, r: r, node: g.select('circle.dot') };
+    });
+    G.evs.forEach(function (o) {
+      o.node.on('pointermove', function (ev) {
+        if (!o.g.classed('on')) return;
+        ev.stopPropagation();
+        if (G.hov) G.hov.style('opacity', 0);
+        o.g.classed('hov', true);
+        var e = o.e, size = e.amount == null ? '' : e.unit === '$B' ? (e.lane === 'Acquisitions' ? 'Price: ' : 'Size: ') + money(e.amount) : e.amount + ' ' + e.unit;
+        showTipText(ev, e.title, [e.date_label + ' · ' + e.status, size, e.detail, 'Source: ' + e.source, 'Click to jump to this moment.'], LCOL[e.lane]);
+      }).on('pointerleave', function () { o.g.classed('hov', false); tip.hidden = true; })
+        .on('click', function (ev) { if (!o.g.classed('on')) return; ev.stopPropagation(); tip.hidden = true; seekToDate(o.e.t); });
+    });
+    G.now = svg.append('line').attr('y1', plotTop).attr('y2', rib0 + laneH * NL).style('stroke', 'var(--fg)').style('stroke-opacity', .35).style('stroke-dasharray', '3 3').style('pointer-events', 'none');
+    G.hov = svg.append('line').attr('y1', plotTop).attr('y2', rib0 + laneH * NL).style('stroke', 'var(--fg)').style('stroke-opacity', .5).style('opacity', 0).style('pointer-events', 'none');
+    G.heads = M.series.map(function (s) {
+      var g = svg.append('g').style('pointer-events', 'none');
+      g.append('circle').attr('class', 'head-ring').attr('r', 6).style('stroke', s.color);
+      g.append('circle').attr('r', 5.5).style('fill', s.color).style('stroke', 'var(--panel)').style('stroke-width', 2.5);
+      var lab = svg.append('text').style('fill', s.color).style('font-weight', 700).style('font-size', '13px').style('pointer-events', 'none');
+      return { s: s, g: g, lab: lab };
+    });
+    G.tlayer = svg.append('g');
+  }
+
+  /* hover over the plot: values at that date; click: jump there */
+  function plotTime(ev) {
+    if (!G.x) return null;
+    var r = svgNode.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    if (px < G.xL || px > G.xR || py < G.plotTop - 2 || py > G.ribBot) return null;
+    var tm = G.x.invert(px).getTime();
+    return (tm > dateAt(st.pos) || tm > T1 || tm < T0) ? null : tm;
+  }
+  svgNode.addEventListener('pointermove', function (ev) {
+    var tm = plotTime(ev);
+    if (tm === null) { hideHover(); return; }
+    var M = G.M, lines = [];
+    M.series.forEach(function (s) { var v = interpN(s.data, tm); if (v !== null) lines.push([s.name + ': ' + s.fmt(v), s.color]); });
+    if (M.growth) { var gv = interpN(GR, tm); if (gv !== null) lines.push(['Growth on the prior fiscal year: ' + (gv >= 0 ? '+' : '−') + Math.abs(gv).toFixed(1) + '%', 'var(--good)']); }
+    if (M.fy) lines.push(tm > FY26 ? 'After Jan 2026 this is the FY27 guidance, gliding from FY26. It is not a reported result.' : 'Fiscal-year figures; the line glides between year-ends.');
+    if (M.note) lines.push(M.note);
+    lines.push('Click to jump here.');
+    G.hov.attr('x1', G.x(tm)).attr('x2', G.x(tm)).style('opacity', 1);
+    showTipText(ev, monLong(tm), lines);
+  });
+  svgNode.addEventListener('pointerleave', hideHover);
+  svgNode.addEventListener('click', function (ev) {
+    var tm = plotTime(ev);
+    if (tm !== null) { tip.hidden = true; seekToDate(tm); }
+  });
+
+  /* a label that flashes for about a second when a dot appears during playback */
+  function showToast(o) {
+    if (!G.tlayer) return;
+    var e = o.e, txt = e.title.length > 40 ? e.title.slice(0, 39) + '…' : e.title;
+    var w = txt.length * 6.3 + 28, h = 22, col = LCOL[e.lane];
+    var x = clamp(o.cx - w / 2, G.xL, G.xR - w), y = G.rib0 - h - 10;
+    G.toasts = (G.toasts || []).filter(function (a) { return a.alive; });
+    var moved = true, guard = 0;
+    while (moved && guard++ < 6) {
+      moved = false;
+      G.toasts.forEach(function (a) { if (Math.abs(a.y - y) < h + 2 && x < a.x + a.w + 4 && x + w + 4 > a.x) { y = a.y - h - 3; moved = true; } });
+    }
+    y = Math.max(G.plotTop - 6, y);
+    var g = G.tlayer.append('g').attr('class', 'toast').style('pointer-events', 'none');
+    g.append('line').attr('x1', o.cx).attr('x2', o.cx).attr('y1', y + h).attr('y2', o.cy - o.r - 1).style('stroke', col).style('stroke-width', 1.5).style('stroke-dasharray', '2 2');
+    g.append('rect').attr('x', x).attr('y', y).attr('width', w).attr('height', h).attr('rx', h / 2).style('fill', 'var(--panel)').style('stroke', col).style('stroke-width', 1.5);
+    g.append('circle').attr('cx', x + 11).attr('cy', y + h / 2).attr('r', 4).style('fill', col);
+    g.append('text').attr('x', x + 21).attr('y', y + h / 2 + 4).text(txt);
+    var rec = { x: x, y: y, w: w, alive: true };
+    G.toasts.push(rec);
+    var node = g.node();
+    setTimeout(function () { node.classList.add('in'); }, 20);
+    setTimeout(function () { node.classList.remove('in'); node.classList.add('out'); }, 1250);
+    setTimeout(function () { rec.alive = false; if (node.parentNode) node.parentNode.removeChild(node); }, 1650);
+  }
+
+  function drawFrame(t) {
+    if (!G.x) return;
+    var xs = G.x(t);
+    document.getElementById('clipr').setAttribute('width', Math.max(0, xs));
+    G.now.attr('x1', xs).attr('x2', xs);
+    var end = xs > G.W - 90, used = [];
+    G.heads.forEach(function (h) {
+      var d = h.s.data;
+      if (t < d[0][0]) { h.g.style('display', 'none'); h.lab.style('display', 'none'); return; }
+      h.g.style('display', null); h.lab.style('display', null);
+      var v = interp(d, t), ys = G.y(v), ly = ys - 12;
+      used.forEach(function (u) { if (Math.abs(ly - u) < 16) ly = ys + 22; });
+      used.push(ly);
+      h.g.attr('transform', 'translate(' + xs + ',' + ys + ')');
+      h.lab.attr('x', xs + (end ? -10 : 10)).attr('y', ly).attr('text-anchor', end ? 'end' : 'start').text(h.s.fmt(v) + (G.M.fy && t > FY26 ? ' (guide)' : ''));
+    });
+    G.calls.forEach(function (c) { c.g.classed('on', t >= c.t); });
+    G.evs.forEach(function (o) {
+      var on = t >= o.e.t;
+      if (on && !o.g.classed('on') && G.toast && G.lastT != null && t > G.lastT && t - G.lastT < 60 * DAY) showToast(o);
+      o.g.classed('on', on);
+    });
+    G.lastT = t;
+    ACTS.forEach(function (a) { var el = document.getElementById('bl' + a.id); if (el) el.classList.toggle('reached', t >= a.A); });
+  }
+
+  /* ---------- tiles ---------- */
+  var tileEls = {};
+  var tilesHost = $('tiles');
+  TILES.forEach(function (T) {
+    var d = document.createElement('button'); d.type = 'button'; d.className = 'stat'; d.setAttribute('data-dir', ''); d.setAttribute('data-chart', T.chart); d.setAttribute('aria-pressed', 'false');
+    d.innerHTML = '<span class="lbl"><span class="tx"></span><span class="arrow">▲</span></span><span class="val">—</span>' +
+      '<span class="side"><span class="lx"></span><span class="spark"><svg viewBox="0 0 200 22" preserveAspectRatio="none" aria-hidden="true"><defs><clipPath id="spc-' + T.id + '"><rect x="0" y="0" width="0" height="22"></rect></clipPath></defs>' +
+      '<path class="sp-ghost"></path><path class="sp-area" clip-path="url(#spc-' + T.id + ')"></path><path class="sp-line" clip-path="url(#spc-' + T.id + ')"></path></svg><i class="sp-dot"></i></span></span>';
+    d.querySelector('.tx').textContent = T.label;
+    d.addEventListener('click', function () { setMetric(T.chart); });
+    tilesHost.appendChild(d);
+    tileEls[T.id] = { el: d, val: d.querySelector('.val'), lx: d.querySelector('.lx'), arrow: d.querySelector('.arrow'), disp: null, tgt: null, shown: '', dirT: 0, subTxt: '', lxTxt: '' };
+    buildSpark(T, tileEls[T.id]);
+  });
+  function buildSpark(T, o) {
+    var SPN = 400, SPX0 = T0, SPX1 = T1 + 50 * DAY;
+    var ts = [], vs = [], lo = Infinity, hi = -Infinity, i;
+    for (i = 0; i < SPN; i++) {
+      var tt = T0 + (T1 - T0) * i / (SPN - 1), v = T.f(tt);
+      ts.push(tt); vs.push(v);
+      if (v !== null) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    }
+    if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+    var pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
+    var xs = function (tt) { return (tt - SPX0) / (SPX1 - SPX0) * 200; };
+    var ys = function (v) { return 20 - (v - lo) / (hi - lo) * 18; };
+    var dl = '', first = null, lastX = '0';
+    for (i = 0; i < SPN; i++) {
+      if (vs[i] === null) continue;
+      var X = xs(ts[i]).toFixed(1), Y = ys(vs[i]).toFixed(1);
+      dl += (first === null ? 'M' : 'L') + X + ' ' + Y;
+      if (first === null) first = X;
+      lastX = X;
+    }
+    var da = dl.replace(/^M/, 'M' + first + ' 22L') + 'L' + lastX + ' 22Z';
+    var svgEl = o.el.querySelector('.spark svg');
+    svgEl.querySelector('.sp-ghost').setAttribute('d', dl);
+    svgEl.querySelector('.sp-area').setAttribute('d', da);
+    svgEl.querySelector('.sp-line').setAttribute('d', dl);
+    o.spClip = svgEl.querySelector('clipPath rect'); o.spDot = o.el.querySelector('.sp-dot'); o.spYs = ys;
+  }
+  function updateSparks(t) {
+    var SPX0 = T0, SPX1 = T1 + 50 * DAY;
+    var cx = (t - SPX0) / (SPX1 - SPX0) * 200;
+    TILES.forEach(function (T) {
+      var o = tileEls[T.id], v = T.f(t);
+      o.spClip.setAttribute('width', Math.max(0, cx).toFixed(2));
+      if (v === null) { o.spDot.style.opacity = 0; return; }
+      o.spDot.style.opacity = 1;
+      o.spDot.style.left = (cx / 200 * 100).toFixed(2) + '%';
+      o.spDot.style.top = (o.spYs(v) / 22 * 100).toFixed(2) + '%';
+    });
+  }
+  function updateTiles(t, dt, snap) {
+    var now = performance.now();
+    TILES.forEach(function (T) {
+      var o = tileEls[T.id], tgt = T.f(t);
+      var sub = T.sub(t); if (sub !== o.subTxt) { o.el.title = 'Click to show this measure in the chart. ' + sub; o.subTxt = sub; }
+      var isEst = T.est ? T.est(t) : false, lx = isEst ? 'guide' : (T.lx ? T.lx(t) : '');
+      if (lx !== o.lxTxt) { o.lx.textContent = lx; o.lx.classList.toggle('est', isEst); o.lxTxt = lx; }
+      if (tgt === null) { if (o.shown !== '—') { o.val.textContent = '—'; o.shown = '—'; } o.disp = null; o.tgt = null; return; }
+      if (o.disp === null || snap || reduce) o.disp = tgt; else o.disp += (tgt - o.disp) * Math.min(1, dt * 7);
+      if (o.tgt !== null && Math.abs(tgt - o.tgt) > 1e-6 && !snap) {
+        var dir = tgt > o.tgt ? 'up' : 'down';
+        if (o.el.getAttribute('data-dir') !== dir) { o.el.setAttribute('data-dir', dir); o.arrow.textContent = dir === 'up' ? '▲' : '▼'; }
+        o.dirT = now;
+      }
+      if (now - o.dirT > 700 && o.el.getAttribute('data-dir')) o.el.setAttribute('data-dir', '');
+      o.tgt = tgt;
+      var txt = T.fmt(o.disp);
+      if (txt !== o.shown) { o.val.textContent = txt; o.shown = txt; }
+    });
+  }
+
+  /* ---------- caption ---------- */
+  var capEl = $('caption');
+  function renderScene(i) {
+    var s = SC[i], act = ACTS[s.act - 1];
+    var left = document.createElement('div'); left.className = 'cap-in';
+    var k = document.createElement('div'); k.className = 'kicker'; k.textContent = 'Act ' + act.id + ' · ' + act.name + ' · ' + monLong(s.A) + ' to ' + monLong(s.B);
+    var h = document.createElement('h2'); h.className = 'cap-title'; h.textContent = s.title;
+    var p = document.createElement('p'); p.className = 'cap-body'; p.textContent = s.body;
+    left.appendChild(k); left.appendChild(h); left.appendChild(p);
+    var nodes = [left];
+    if (s.big) {
+      var bg = document.createElement('div'); bg.className = 'cap-in cap-big';
+      var b = document.createElement('b'); b.textContent = s.big[0]; var sp = document.createElement('span'); sp.textContent = s.big[1];
+      bg.appendChild(b); bg.appendChild(sp); nodes.push(bg);
+    }
+    capEl.replaceChildren.apply(capEl, nodes);
+    capEl.scrollTop = 0;
+  }
+  function recapStats() {
+    var n = REV.length - 2;
+    var pc = function (v) { return (v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%'; };
+    var launches = EV.filter(function (e) { return e.lane === 'Products'; }).length;
+    return [
+      ['×' + (REV[n][1] / REV[0][1]).toFixed(1), 'revenue, $' + REV[0][1].toFixed(1) + 'B in FY15 to $' + REV[n][1].toFixed(1) + 'B in FY26'],
+      ['×' + (NGOM[n][1] / NGOM[0][1]).toFixed(1), 'non-GAAP operating margin, ' + pc(NGOM[0][1]) + ' to ' + pc(NGOM[n][1])],
+      [pc(GOM[0][1]) + ' to ' + pc(GOM[n][1]), 'GAAP operating margin, FY15 to FY26'],
+      ['×' + (OCF[n][1] / OCF[0][1]).toFixed(1), 'operating cash flow, $' + OCF[0][1].toFixed(1) + 'B to $' + OCF[n][1].toFixed(1) + 'B'],
+      ['$' + NGEPS[0][1].toFixed(2) + ' to $' + NGEPS[n][1].toFixed(2), 'non-GAAP EPS, FY15 to FY26'],
+      ['$1.5B+', 'Agentforce ARR by August 2026'],
+      ['$' + buyCum(T1).toFixed(0) + 'B', 'of buybacks since 2022, plus a dividend since 2024'],
+      [launches + ' launches', 'from Lightning in 2015 to AIforce in 2026']
+    ];
+  }
+  function renderRecap() {
+    var wrap = document.createElement('div'); wrap.className = 'cap-in recap';
+    var k = document.createElement('div'); k.className = 'kicker'; k.textContent = 'The whole story, January 2015 to November 2026';
+    var h = document.createElement('h3'); h.textContent = 'Nearly eight times the revenue, three times the margin';
+    var g = document.createElement('div'); g.className = 'grid';
+    recapStats().forEach(function (r) {
+      var d = document.createElement('div'); var b = document.createElement('b'); b.textContent = r[0]; var sp = document.createElement('span'); sp.textContent = r[1];
+      d.appendChild(b); d.appendChild(sp); g.appendChild(d);
+    });
+    wrap.appendChild(k); wrap.appendChild(h); wrap.appendChild(g);
+    capEl.replaceChildren(wrap);
+    capEl.scrollTop = 0;
+  }
+
+  /* ---------- act pills, ticks ---------- */
+  var actsHost = $('acts'), actBtns = [], actFills = [];
+  ACTS.forEach(function (a) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'actpill';
+    b.title = 'Act ' + a.id + ' · ' + a.name + ' · ' + a.yrs; b.setAttribute('aria-label', 'Jump to act ' + a.id + ': ' + a.name);
+    var f = document.createElement('i'); b.appendChild(f);
+    b.addEventListener('click', function () {
+      var si = SC.findIndex(function (s) { return s.act === a.id; });
+      st.pos = SC[si].start; st.done = false; setPlaying(true); frame(performance.now(), true);
+    });
+    actsHost.appendChild(b); actBtns.push(b); actFills.push(f);
+  });
+  var ticks = $('ticks');
+  ACTS.forEach(function (a) {
+    var si = SC.findIndex(function (s) { return s.act === a.id; });
+    var i = document.createElement('i'); i.style.left = (SC[si].start / total * 100) + '%'; ticks.appendChild(i);
+  });
+
+  /* ---------- controls ---------- */
+  var btnPlay = $('btn-play'), scrub = $('scrub'), bigplay = $('bigplay'), notes = $('notes'), btnInfo = $('btn-info');
+  function setPlaying(on) {
+    st.playing = on;
+    $('ic-play').hidden = on; $('ic-pause').hidden = !on;
+    $('play-txt').textContent = on ? 'Pause' : 'Play';
+    btnPlay.setAttribute('aria-label', on ? 'Pause' : 'Play');
+    bigplay.hidden = on || !(st.pos >= total - 0.05 || st.pos <= 0.05);
+    st.last = performance.now();
+  }
+  function startFromTop() { st.pos = 0; st.done = false; setPlaying(true); frame(performance.now(), true); }
+  btnPlay.addEventListener('click', function () {
+    if (st.playing) { setPlaying(false); return; }
+    if (st.pos >= total - 0.05) { startFromTop(); return; }
+    if (st.mode === 'step') { doNext(); return; }
+    st.done = false; setPlaying(true);
+  });
+  $('btn-restart').addEventListener('click', startFromTop);
+  bigplay.addEventListener('click', startFromTop);
+  $('speed').addEventListener('change', function (e) { st.speed = parseFloat(e.target.value); });
+  scrub.addEventListener('input', function () {
+    st.pos = scrub.value / 1000 * total; st.done = st.pos >= total - 0.05;
+    bigplay.hidden = !(st.pos >= total - 0.05 || st.pos <= 0.05) || st.playing;
+    frame(performance.now(), true);
+  });
+  btnInfo.addEventListener('click', function () {
+    var open = notes.hidden; notes.hidden = !open; btnInfo.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  /* ---------- click-through mode ---------- */
+  var LAST = SC.length - 1;
+  function sceneEndPos(i) { return i === LAST ? total - 0.06 : SC[i].start + SC[i].dur - 1e-4; }
+  function atSceneEnd(i) { return st.pos >= sceneEndPos(i) - 0.02; }
+  function doNext() {
+    if (st.pos >= total - 0.05) { startFromTop(); return; }
+    var i = sceneIndexAt(st.pos);
+    if (st.playing) { st.pos = sceneEndPos(i); setPlaying(false); return; }
+    if (!atSceneEnd(i)) { st.done = false; setPlaying(true); return; }
+    if (i === LAST) { st.pos = total; st.done = true; setPlaying(false); return; }
+    st.pos = SC[i + 1].start; st.done = false; setPlaying(true);
+  }
+  function doBack() {
+    if (st.pos >= total - 0.05) { st.pos = sceneEndPos(LAST); st.done = false; setPlaying(false); return; }
+    var i = sceneIndexAt(st.pos);
+    if ((st.playing || !atSceneEnd(i)) && st.pos - SC[i].start > 0.3) { st.pos = SC[i].start; st.done = false; setPlaying(true); return; }
+    if (i === 0) { st.pos = 0; st.done = false; setPlaying(false); return; }
+    st.pos = sceneEndPos(i - 1); st.done = false; setPlaying(false);
+  }
+  function setMode(m) {
+    st.mode = m;
+    $('m-auto').setAttribute('aria-checked', m === 'auto' ? 'true' : 'false');
+    $('m-step').setAttribute('aria-checked', m === 'step' ? 'true' : 'false');
+    $('stepcount').hidden = m !== 'step'; $('btn-back').hidden = m !== 'step'; $('btn-next').hidden = m !== 'step';
+    $('bigplay-txt').textContent = m === 'step' ? 'Start the story, one click per scene' : 'Watch the story · about 80 seconds';
+    if (m === 'auto') $('btn-next').classList.remove('waiting');
+  }
+  function updateStepUI(si, rec) {
+    if (st.mode !== 'step') return;
+    var nb = $('btn-next'), end = atSceneEnd(si);
+    nb.classList.toggle('waiting', !st.playing && !rec && end);
+    nb.firstChild.nodeValue = rec ? 'Replay' : (si === LAST && end && !st.playing ? 'Finish' : 'Next');
+    $('stepcount').textContent = rec ? 'The whole story' : 'Scene ' + (si + 1) + ' of ' + SC.length;
+  }
+  $('m-auto').addEventListener('click', function () { setMode('auto'); });
+  $('m-step').addEventListener('click', function () { setMode('step'); });
+  $('btn-next').addEventListener('click', doNext);
+  $('btn-back').addEventListener('click', doBack);
+  document.addEventListener('keydown', function (e) {
+    var tg = e.target && e.target.tagName;
+    if (e.key === 'Escape') { if (!notes.hidden) { notes.hidden = true; btnInfo.setAttribute('aria-expanded', 'false'); } tip.hidden = true; return; }
+    if (tg === 'INPUT' || tg === 'SELECT' || tg === 'TEXTAREA') return;
+    if (e.key === ' ' && tg === 'BODY') { e.preventDefault(); btnPlay.click(); return; }
+    if (st.mode !== 'step') return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); doNext(); } else if (e.key === 'ArrowLeft') { e.preventDefault(); doBack(); }
+  });
+
+  /* ---------- main loop ---------- */
+  function frame(ts, snap) {
+    var dt = Math.min(0.1, (ts - st.last) / 1000); st.last = ts;
+    if (st.playing && !snap) {
+      var np = st.pos + dt * st.speed;
+      if (st.mode === 'step' && st.pos < total - 0.05) {
+        var se = sceneEndPos(sceneIndexAt(st.pos));
+        if (np >= se) { st.pos = Math.max(st.pos, se); setPlaying(false); np = null; }
+      }
+      if (np !== null) { st.pos = np; if (st.pos >= total) { st.pos = total; st.done = true; setPlaying(false); } }
+    }
+    var t = dateAt(st.pos);
+    var si = sceneIndexAt(st.pos), atEnd = st.pos >= total - 0.05;
+    var key = atEnd ? 'r' : si;
+    if (key !== st.scene) {
+      var prevAct = st.act;
+      st.scene = key;
+      if (atEnd) renderRecap(); else renderScene(si);
+      var actNow = atEnd ? 5 : SC[si].act;
+      if (actNow !== prevAct) {
+        st.act = actNow;
+        actBtns.forEach(function (b, i) { b.classList.toggle('cur', i === actNow - 1); });
+        $('actname').textContent = 'Act ' + actNow + ' · ' + ACTS[actNow - 1].name + ' · ' + ACTS[actNow - 1].yrs;
+        if (st.playing && !atEnd && !reduce) {
+          var ab = $('actbanner'); $('ab-k').textContent = 'Act ' + actNow; $('ab-t').textContent = ACTS[actNow - 1].name;
+          ab.classList.remove('show'); void ab.offsetWidth; ab.classList.add('show');
+        }
+      }
+    }
+    ACTS.forEach(function (a, i) { actFills[i].style.width = (clamp((t - a.A) / (a.B - a.A), 0, 1) * 100).toFixed(1) + '%'; });
+    G.toast = st.playing && !snap;
+    drawFrame(t);
+    updateTiles(t, dt, snap || reduce);
+    updateSparks(t);
+    $('datelabel').textContent = monLong(t);
+    updateStepUI(si, atEnd);
+    if (document.activeElement !== scrub) scrub.value = Math.round(st.pos / total * 1000);
+    else if (st.playing) scrub.value = Math.round(st.pos / total * 1000);
+  }
+  function loop(ts) { frame(ts, false); requestAnimationFrame(loop); }
+
+  /* ---------- boot ---------- */
+  function setMetric(k) {
+    if (!METRICS[k]) return;
+    var changed = k !== curMetric;
+    curMetric = k;
+    TILES.forEach(function (T) { var on = T.chart === k; tileEls[T.id].el.classList.toggle('sel', on); tileEls[T.id].el.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    $('curchart').textContent = METRICS[k].label;
+    if (changed) { hideHover(); build(); frame(performance.now(), true); }
+  }
+  setMetric('rev');
+  build();
+  setPlaying(false);
+  st.last = performance.now();
+  frame(performance.now(), true);
+  requestAnimationFrame(loop);
+  var rz;
+  function onSize() { clearTimeout(rz); rz = setTimeout(function () { if (Math.abs(box.clientWidth - st.W) > 2 || Math.abs(box.clientHeight - st.H) > 2) { build(); frame(performance.now(), true); } }, 120); }
+  window.addEventListener('resize', onSize);
+  if (window.ResizeObserver) new ResizeObserver(onSize).observe(box);
+})();
+</script>
