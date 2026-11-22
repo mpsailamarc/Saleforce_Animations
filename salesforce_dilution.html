@@ -1,0 +1,1171 @@
+<title>Salesforce Dilution Reel</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* One screen: header stats, two stacked panels (share count, price) with a lens column beside them, caption band, controls. */
+:root {
+  --bg: #EEF2F7; --panel: #FFFFFF; --fg: #0C1B2E; --muted: #55667B; --line: #D3DCE8;
+  --accent: #0B6BCB; --accent-soft: rgba(11,107,203,.16); --hot: #E0530A; --violet: #6D4AD8; --teal: #0A8C80; --gold: #D99A00; --net: #5E6C80;
+  --good: #12805C; --bad: #C62F2F; --band: rgba(12,27,46,.045);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #08111F; --panel: #101D31; --fg: #E7EEF8; --muted: #8FA1B8; --line: #22344F;
+    --accent: #4DA3FF; --accent-soft: rgba(77,163,255,.2); --hot: #FF8C4A; --violet: #A98BFF; --teal: #2FD0C1; --gold: #FFC857; --net: #A9B6C8;
+    --good: #3CCB93; --bad: #FF6B6B; --band: rgba(231,238,248,.05); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #08111F; --panel: #101D31; --fg: #E7EEF8; --muted: #8FA1B8; --line: #22344F;
+  --accent: #4DA3FF; --accent-soft: rgba(77,163,255,.2); --hot: #FF8C4A; --violet: #A98BFF; --teal: #2FD0C1; --gold: #FFC857; --net: #A9B6C8;
+  --good: #3CCB93; --bad: #FF6B6B; --band: rgba(231,238,248,.05); color-scheme: dark;
+}
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; margin: 0;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); }
+.stage { height: calc(100dvh - 24px); min-height: 480px; max-width: 1520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; position: relative; }
+.stage *, .stage *::before, .stage *::after { box-sizing: border-box; }
+.stage p, .stage h1, .stage h2, .stage h3 { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; flex: 0 0 auto; }
+.stats { display: flex; align-items: flex-end; gap: clamp(14px, 3vw, 40px); min-width: 0; }
+.eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.num { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num.big { font-size: clamp(18px, 3.2vmin, 28px); }
+.num.mid { font-size: clamp(18px, 3.2vmin, 28px); }
+.dd { font-size: clamp(11.5px, 1.8vmin, 14px); color: var(--muted); margin-top: 2px; min-height: 1.4em; white-space: nowrap; }
+.dd b { font-weight: 600; } .dd.up b { color: var(--bad); } .dd.down b { color: var(--good); }
+.tl { min-width: 0; }
+.title { font-family: var(--font-display); font-weight: 800; letter-spacing: -.01em; font-size: clamp(20px, 3.8vmin, 32px); margin-bottom: 8px; line-height: 1.12; text-wrap: balance; }
+.tsub { font-family: var(--font-body); font-weight: 500; font-size: clamp(12px, 1.9vmin, 15px); letter-spacing: 0; color: var(--muted); margin-left: 12px; white-space: nowrap; }
+@media (max-width: 900px) { .tsub { display: none; } }
+.dd.pos b { color: var(--good); } .dd.neg b { color: var(--bad); }
+.topr { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 0; }
+.date { font-family: var(--font-display); font-weight: 800; letter-spacing: -.01em; font-size: clamp(20px, 4.2vmin, 38px); line-height: 1; font-variant-numeric: tabular-nums; }
+.actname { font-size: clamp(11px, 1.7vmin, 13px); color: var(--muted); white-space: nowrap; }
+.acts { display: flex; gap: 6px; }
+.actpill { position: relative; width: clamp(60px, 11vw, 150px); height: 8px; border-radius: 99px; border: 0; padding: 0; background: var(--line); cursor: pointer; overflow: hidden; }
+.actpill i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 99px; }
+.actpill:nth-child(1) i { background: var(--hot); } .actpill:nth-child(2) i { background: var(--teal); }
+.actpill.cur { outline: 2px solid var(--accent-soft); }
+.actpill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.rangebar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 0 0 auto; font-size: 12.5px; color: var(--muted); }
+.rangebar .rl { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 500; margin-right: 2px; }
+.rangebar select { height: 30px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); padding: 0 10px; font-size: 12.5px; cursor: pointer; }
+.chip { height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+.chip:focus-visible, .rangebar select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tog { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); cursor: pointer; font-size: 12.5px; color: var(--fg); white-space: nowrap; }
+.tog:has(input:disabled) { opacity: .45; cursor: default; }
+.tog input { accent-color: var(--teal); margin: 0; }
+.p2ctl { position: absolute; right: 12px; top: 0; display: flex; gap: 6px; align-items: center; z-index: 3; }
+.p2ctl .seg button { height: 22px; padding: 0 10px; font-size: 11.5px; }
+.p2ctl .tog { height: 26px; padding: 0 10px; font-size: 11.5px; }
+.p2ctl .sw { width: 12px; height: 3px; border-radius: 2px; background: var(--teal); display: inline-block; }
+.p2ctl.compact .tog .t { display: none; }
+.left .ptitle { font-size: 12.5px; }
+.rangebar .hint { margin-left: auto; font-size: 12px; }
+.main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(250px, 1fr); gap: 10px; }
+.left { position: relative; min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; }
+.left svg.chart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.left text { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+.left .ptitle { font-weight: 600; fill: var(--fg); font-size: 11.5px; }
+.left .headlab { fill: var(--fg); font-weight: 700; font-size: 13px; }
+.left .bandlab { font-weight: 600; letter-spacing: .05em; text-transform: uppercase; font-size: 10px; opacity: 0; transition: opacity .6s; }
+.left .bandlab.on { opacity: 1; }
+.head-ring { fill: none; stroke: var(--fg); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: pulse 1.6s ease-out infinite; }
+@keyframes pulse { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.8); opacity: 0; } }
+.mk circle.dot { transform-box: fill-box; transform-origin: center; transform: scale(0); transition: transform .5s cubic-bezier(.2, 1.7, .4, 1); cursor: pointer; }
+.mk.on circle.dot { transform: scale(1); }
+.mk circle.ring { fill: none; stroke-width: 2; transform-box: fill-box; transform-origin: center; opacity: 0; }
+.mk.on circle.ring { animation: ring 1.2s ease-out 1; }
+@keyframes ring { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(3.6); opacity: 0; } }
+.mk circle.hit { fill: transparent; pointer-events: none; }
+.mk.on circle.hit { pointer-events: all; cursor: pointer; }
+.mk.ghost circle.dot { transform: scale(1); opacity: .4; }
+.mk.ghost circle.hit { pointer-events: all; cursor: pointer; }
+.mk.on.hov circle.dot { transform: scale(1.45); }
+.mk.on.sel circle.dot { transform: scale(1.9); stroke-width: 3; }
+.mk.on.sel circle.ring { animation: none; opacity: .35; transform: scale(2.8); }
+.ldr { stroke-width: 1; stroke-dasharray: 2 3; opacity: 0; transition: opacity .3s; }
+.ldr.on { opacity: .8; }
+.cards { position: absolute; inset: 0; pointer-events: none; }
+.card { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: clamp(11px, 1.5vmin, 13.5px); font-weight: 600;
+  padding: 2px 10px 2px 8px; border-radius: 999px; background: var(--panel); border: 1.5px solid var(--c); color: var(--fg); box-shadow: 0 5px 16px rgba(0,0,0,.16);
+  opacity: 0; transform: scale(.6); transform-origin: 50% 0; transition: opacity .35s, transform .45s cubic-bezier(.2, 1.6, .4, 1); }
+.card.on { opacity: 1; transform: scale(1); }
+.card i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+.card.est i { background: transparent; border: 1.5px dashed var(--c); }
+.actbanner { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); pointer-events: none; text-align: center; opacity: 0;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: 12px; padding: 12px 26px; backdrop-filter: blur(6px); }
+.actbanner small { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.actbanner b { font-family: var(--font-display); font-weight: 800; font-size: clamp(22px, 4vmin, 38px); letter-spacing: -.01em; }
+.actbanner.show { animation: banner 2.4s ease both; }
+@keyframes banner { 0% { opacity: 0; transform: translate(-50%, -46%) scale(.94); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -54%) scale(1.02); } }
+.bigplay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 12px; cursor: pointer;
+  background: var(--fg); color: var(--bg); border: 0; border-radius: 999px; padding: 14px 24px; font-family: var(--font-display); font-weight: 700; font-size: clamp(15px, 2.4vmin, 19px); box-shadow: 0 10px 30px rgba(0,0,0,.28); }
+.bigplay svg { width: 20px; height: 20px; fill: currentColor; }
+.bigplay[hidden], .btn svg[hidden], .bigplay svg[hidden] { display: none; }
+.tip { position: absolute; z-index: 6; pointer-events: none; max-width: 300px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.22); border-radius: 8px; padding: 9px 11px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.tip b { display: block; color: var(--fg); font-size: 13px; margin-bottom: 2px; }
+
+.right { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.lens { flex: 1 1 0; min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 6px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+#l3 { display: none; }
+#l2 { flex-grow: 2.6; }
+.lens .hd { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.seg.mini { padding: 2px; flex: none; }
+.seg.mini button { height: 22px; padding: 0 9px; font-size: 11.5px; }
+.k-net { color: var(--net); font-weight: 700; }
+.k-emp { color: var(--hot); font-weight: 600; } .k-deal { color: var(--gold); font-weight: 600; } .k-ret { color: var(--teal); font-weight: 600; }
+.lens h3 { font-family: var(--font-display); font-size: clamp(12.5px, 1.8vmin, 15px); font-weight: 700; letter-spacing: -.005em; }
+.lens .stat { font-size: clamp(11px, 1.55vmin, 12.5px); color: var(--muted); min-height: 1.45em; line-height: 1.35; }
+.lens .stat b { color: var(--fg); font-weight: 600; }
+.lens svg { flex: 1 1 auto; min-height: 0; width: 100%; display: block; }
+.lens text { font-family: var(--font-body); font-size: 10px; fill: var(--muted); }
+.lens text.val { fill: var(--fg); font-weight: 600; }
+.sc { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 2px; }
+.sc div { border-top: 1px solid var(--line); padding-top: 3px; min-width: 0; }
+.sc span { display: block; font-size: 10.5px; color: var(--muted); }
+.sc b { display: block; font-family: var(--font-display); font-weight: 800; font-size: clamp(15px, 2.7vmin, 24px); letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sc b.neg { color: var(--bad); } .sc b.pos { color: var(--good); }
+
+.caption { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: end; min-height: clamp(92px, 16vh, 160px); }
+.cap-in { animation: capin .55s cubic-bezier(.2, .8, .2, 1) both; min-width: 0; }
+@keyframes capin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.kicker { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.cap-title { font-family: var(--font-display); font-weight: 800; letter-spacing: -.015em; line-height: 1.05; font-size: clamp(20px, 3.6vmin, 34px); margin-top: 3px; text-wrap: balance; }
+.cap-body { margin-top: 5px; font-size: clamp(12px, 1.9vmin, 15.5px); line-height: 1.45; max-width: 100ch; }
+.cap-big { text-align: right; max-width: 30ch; }
+.cap-big b { display: block; font-family: var(--font-display); font-weight: 800; color: var(--hot); letter-spacing: -.02em; line-height: 1; font-size: clamp(24px, 5vmin, 48px); }
+.cap-big span { display: block; margin-top: 4px; color: var(--muted); font-size: clamp(11px, 1.6vmin, 13px); }
+.recap { grid-column: 1 / -1; }
+.recap .grid { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; }
+.recap .grid div { border-top: 1px solid var(--line); padding-top: 6px; min-width: 0; }
+.recap .grid b { display: block; font-family: var(--font-display); font-weight: 800; color: var(--accent); font-size: clamp(18px, 3.1vmin, 27px); line-height: 1.1; }
+.recap .grid span { display: block; color: var(--muted); font-size: clamp(10.5px, 1.5vmin, 12.5px); line-height: 1.3; }
+
+.controls { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; min-width: 36px; padding: 0 13px; border-radius: 999px; cursor: pointer; background: var(--panel); border: 1px solid var(--line); font-size: 13px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+.btn.next { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; padding: 0 18px; }
+.btn.next.waiting { animation: nudge 1.4s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 8px var(--accent-soft); } }
+.btn svg { width: 15px; height: 15px; fill: currentColor; }
+.btn[hidden] { display: none; }
+.btn:focus-visible, .scrub:focus-visible, .speed:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scrubwrap { position: relative; flex: 1 1 160px; min-width: 120px; padding-top: 8px; }
+.scrub { width: 100%; accent-color: var(--accent); height: 22px; margin: 0; }
+.ticks { position: absolute; left: 0; right: 0; top: 0; height: 8px; pointer-events: none; }
+.ticks i { position: absolute; top: 0; width: 1px; height: 7px; background: var(--muted); opacity: .6; }
+.speed { height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); padding: 0 10px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
+.seg button { border: 0; background: transparent; border-radius: 999px; height: 28px; padding: 0 12px; cursor: pointer; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.seg button[aria-checked="true"] { background: var(--fg); color: var(--bg); font-weight: 600; }
+.stepcount { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.notes { position: absolute; left: 0; right: 0; bottom: 56px; z-index: 8; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.28); font-size: 12.5px; line-height: 1.55; color: var(--muted); max-height: 62%; overflow: auto; }
+.notes[hidden] { display: none; }
+.notes h2 { font-family: var(--font-display); font-size: 16px; color: var(--fg); margin-bottom: 6px; }
+.notes ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.notes a { color: var(--accent); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+@media (max-width: 900px) {
+  .rangebar .hint { display: none; }
+  .main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .right { flex-direction: row; height: clamp(120px, 24vh, 190px); }
+  .lens { padding: 6px 8px 4px; } .lens .stat { display: none; }
+  .btn .t { display: none; } .btn { padding: 0 11px; }
+  .stats .opt { display: none; }
+  .actpill { width: 44px; }
+}
+@media (max-height: 640px) { .caption { min-height: 78px; } .cap-body { font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) {
+  .head-ring, .mk.on circle.ring, .btn.next.waiting { animation: none; }
+  .cap-in { animation: none; } .actbanner.show { display: none; }
+  .card, .mk circle.dot, .ldr { transition: none; }
+}
+</style>
+
+<div class="stage" id="stage">
+  <header class="top">
+    <div class="tl">
+    <h1 class="title">Salesforce dilution: impact on shares, price and market cap, 2015 to 2026</h1>
+    <div class="stats">
+      <div>
+        <p class="eyebrow">Shares outstanding</p>
+        <div class="num big" id="n-sh">651M</div>
+        <div class="dd" id="dd"></div>
+      </div>
+      <div>
+        <p class="eyebrow">Share price <span id="px-est">(est.)</span></p>
+        <div class="num mid" id="n-px">$0</div>
+        <div class="dd" id="dd-px"></div>
+      </div>
+      <div class="opt">
+        <p class="eyebrow">Market cap</p>
+        <div class="num mid" id="n-mc">$0B</div>
+        <div class="dd" id="dd-mc"></div>
+      </div>
+    </div>
+    </div>
+    <div class="topr">
+      <div class="date" id="date">Jan 2015</div>
+      <div class="actname" id="actname"></div>
+      <div class="acts" id="acts" role="group" aria-label="Jump to an act"></div>
+    </div>
+  </header>
+
+  <div class="rangebar" id="rangebar" role="group" aria-label="Zoom to a range of years">
+    <span class="rl">Zoom</span>
+    <select id="r-from" aria-label="From year"></select><span>to</span><select id="r-to" aria-label="To year"></select>
+    <button type="button" class="chip" data-r="2015-2026" aria-pressed="true">All years</button>
+    <button type="button" class="chip" data-r="2015-2022" aria-pressed="false">Issue era</button>
+    <button type="button" class="chip" data-r="2022-2026" aria-pressed="false">Retire era</button>
+    <button type="button" class="chip" data-r="2025-2026" aria-pressed="false">Last two years</button>
+    <span class="hint">Hover for values. Click the chart, a dot or a bar to jump there. The faded line is what you have already seen.</span>
+  </div>
+
+  <div class="main">
+    <section class="left" id="left" aria-label="Share count and share price over time">
+      <svg class="chart" id="chart" role="img" aria-label="Animated share count and share price"></svg>
+      <div class="cards" id="cards"></div>
+      <div class="p2ctl" id="p2ctl">
+        <div class="seg" role="radiogroup" aria-label="Lower chart shows"><button type="button" role="radio" aria-checked="true" id="p-price">Price</button><button type="button" role="radio" aria-checked="false" id="p-cap">Market cap</button></div>
+        <label class="tog"><input type="checkbox" id="t-paid" checked><i class="sw"></i><span class="t">Avg. buyback price</span></label>
+      </div>
+      <div class="actbanner" id="actbanner" aria-hidden="true"><small id="ab-k"></small><b id="ab-t"></b></div>
+      <button class="bigplay" id="bigplay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="bigplay-txt">Play the story</span></button>
+    </section>
+    <aside class="right">
+      <section class="lens" id="l1"><h3>Net change in shares, by fiscal year</h3><div class="stat" id="s1"></div><svg id="v1" aria-hidden="true"></svg></section>
+      <section class="lens" id="l2"><div class="hd"><h3 id="h2">What moves the share count</h3><div class="seg mini" role="radiogroup" aria-label="Chart units"><button type="button" role="radio" aria-checked="true" id="m2-sh">Shares</button><button type="button" role="radio" aria-checked="false" id="m2-usd">Dollars</button></div></div><div class="stat" id="s2"></div><svg id="v2" aria-hidden="true"></svg></section>
+      <section class="lens" id="l3"><h3>Buyback scorecard</h3>
+        <div class="sc"><div><span>Retired</span><b id="sc-sh">0M</b></div><div><span>Paid</span><b id="sc-paid">$0B</b></div><div><span>Worth now</span><b id="sc-val">$0B</b></div></div>
+        <div class="stat" id="s3"></div><svg id="v3" aria-hidden="true"></svg></section>
+    </aside>
+  </div>
+
+  <section class="caption" id="caption" aria-live="polite"></section>
+
+  <div class="controls">
+    <button class="btn primary" id="btn-play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true" id="ic-play"><path d="M7 4.5v15l13-7.5z"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" id="ic-pause" hidden><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg><span class="t" id="play-txt">Play</span></button>
+    <button class="btn" id="btn-restart" type="button" aria-label="Restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/></svg><span class="t">Restart</span></button>
+    <div class="scrubwrap"><div class="ticks" id="ticks"></div><input class="scrub" id="scrub" type="range" min="0" max="1000" value="1000" aria-label="Timeline position"></div>
+    <select class="speed" id="speed" aria-label="Speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select>
+    <div class="seg" role="radiogroup" aria-label="Playback mode"><button type="button" role="radio" aria-checked="true" id="m-auto">Auto</button><button type="button" role="radio" aria-checked="false" id="m-step">Click</button></div>
+    <span class="stepcount" id="stepcount" hidden></span>
+    <button class="btn" id="btn-back" type="button" aria-label="Previous scene" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4.5v15L4 12z"/></svg><span class="t">Back</span></button>
+    <button class="btn next" id="btn-next" type="button" aria-label="Next scene" hidden>Next<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    <button class="btn" id="btn-info" type="button" aria-label="Sources and caveats" aria-expanded="false">Sources</button>
+  </div>
+
+  <div class="tip" id="tip" hidden></div>
+
+  <aside class="notes" id="notes" hidden>
+    <h2>What to trust in this reel</h2>
+    <ul>
+      <li>What moves shares outstanding: it goes up when employees receive shares (RSUs vesting, options exercised, the employee stock purchase plan) and when an acquisition is paid partly in Salesforce stock (MuleSoft, Tableau, Slack), plus one small convertible-note settlement. It goes down when Salesforce buys its own shares back. Salesforce reports the cash it pays for taxes when RSUs vest ($351M in FY26) but not how many shares that covers.</li>
+      <li>Year-end share counts, shares issued to employees and for deals, shares repurchased, repurchase dollars and stock pay come from the equity statements and cash flow statements in Salesforce's 10-Ks for FY16 to FY26 (SEC XBRL pages). Shares outstanding from FY23 on is shares issued minus treasury shares, each rounded to millions, so it can be off by 1M.</li>
+      <li>Quarter-end counts for FY25 to Q2 FY27 are from the 10-Qs and 10-Ks. Between reported dates the line is straight, with jumps on the deal and ASR dates. The late-2022 high of about 1,000M is derived, not reported. The count after Jul 31, 2026 is held flat at the 823M cover-page figure; Q3 results are due Dec 2.</li>
+      <li>The filing lines that show shares issued for acquisitions do not name the deals. I matched them to MuleSoft (FY19), Tableau (FY20) and Slack (FY22) from the dates and dollar values. The FY17 acquisition shares are unnamed.</li>
+      <li>FY27 to date covers the six months to Jul 31, 2026: 114M shares retired (103M from the ASR's first delivery, 11M in the open market at about $192) for $27.4B. The ASR's final settlement was expected around Oct 2026 and I found no filing confirming it, so shares still to be delivered are not counted. New shares issued in FY27 (8M) are derived from the share count.</li>
+      <li>The $240 FY27 average (marked *) is $27.4B divided by the 114M shares delivered so far. If the ASR delivers the remaining ~20% of its shares, the true average will be lower. “Worth now” in the scorecard values the retired shares at the price on the timeline date.</li>
+      <li>\u201cFrom the high so far\u201d compares each number with the highest value seen up to the date shown. The market cap record, $352B on Dec 4, 2024, is a single-day figure; the price that day (about $368) is that cap divided by my modelled share count, so it is an estimate.</li>
+      <li>The share price before Aug 2026 is estimated as market cap divided by an estimated share count, so it can be off by a few percent. The last four month-ends are actual closes. Salesforce does not disclose how many shares are withheld for taxes on vesting RSUs, only the cash ($351M in FY26).</li>
+      <li>Market cap is FinHacker's month-end series (<a href="https://www.finhacker.cz/en/stocks/salesforce-market-cap/" target="_blank" rel="noopener">source</a>). The first-dividend and authorization dates come from the 10-K notes; the Sep 2025 date is from an XBRL label and is low confidence.</li>
+    </ul>
+    <div class="legend">
+      <span><i style="background:var(--hot)"></i>Shares issued</span>
+      <span><i style="background:var(--teal)"></i>Shares retired and buyback pay</span>
+      <span><i style="background:var(--hot)"></i>Stock pay</span>
+      <span><i style="border:1.5px dashed var(--muted)"></i>Estimate or unconfirmed</span>
+    </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var D = {"acq":[["2015-01-31",0.0],["2015-02-28",0.0],["2015-03-31",0.0],["2015-04-30",0.0],["2015-05-31",0.0],["2015-06-30",0.0],["2015-07-31",0.0],["2015-08-31",0.0],["2015-09-30",0.0],["2015-10-31",0.0],["2015-11-30",0.0],["2015-12-31",0.0],["2016-01-31",0.0],["2016-02-29",0.086],["2016-03-31",0.179],["2016-04-30",0.268],["2016-05-31",0.36],["2016-06-30",0.449],["2016-07-31",0.541],["2016-08-31",0.634],["2016-09-30",0.723],["2016-10-31",0.815],["2016-11-30",0.904],["2016-12-31",0.997],["2017-01-31",1.089],["2017-02-28",1.09],["2017-03-31",1.091],["2017-04-30",1.092],["2017-05-31",1.093],["2017-06-30",1.094],["2017-07-31",1.095],["2017-08-31",1.096],["2017-09-30",1.097],["2017-10-31",1.098],["2017-11-30",1.099],["2017-12-31",1.1],["2018-01-31",1.101],["2018-02-28",1.101],["2018-03-31",1.101],["2018-04-30",1.101],["2018-05-02",1.101],["2018-05-05",2.816],["2018-05-31",2.816],["2018-06-30",2.816],["2018-07-31",2.816],["2018-08-31",2.816],["2018-09-30",2.816],["2018-10-31",2.816],["2018-11-30",2.816],["2018-12-31",2.816],["2019-01-31",2.816],["2019-02-28",2.816],["2019-03-31",2.816],["2019-04-30",2.816],["2019-05-31",2.816],["2019-06-30",2.816],["2019-07-31",2.816],["2019-08-01",2.816],["2019-08-04",18.031],["2019-08-31",18.031],["2019-09-30",18.031],["2019-10-31",18.031],["2019-11-30",18.031],["2019-12-31",18.031],["2020-01-31",18.031],["2020-02-29",18.031],["2020-03-31",18.031],["2020-04-30",18.031],["2020-05-31",18.031],["2020-06-30",18.031],["2020-07-31",18.031],["2020-08-31",18.031],["2020-09-30",18.031],["2020-10-31",18.031],["2020-11-30",18.031],["2020-12-31",18.031],["2021-01-31",18.031],["2021-02-28",18.031],["2021-03-31",18.031],["2021-04-30",18.031],["2021-05-31",18.031],["2021-06-30",18.031],["2021-07-20",18.031],["2021-07-21",18.031],["2021-07-24",29.095],["2021-07-31",29.095],["2021-08-31",29.095],["2021-09-30",29.095],["2021-10-31",29.095],["2021-11-30",29.095],["2021-12-31",29.095],["2022-01-31",29.095],["2022-02-28",29.095],["2022-03-31",29.095],["2022-04-30",29.095],["2022-05-31",29.095],["2022-06-30",29.095],["2022-07-31",29.095],["2022-08-30",29.095],["2022-08-31",29.095],["2022-09-30",29.095],["2022-10-31",29.095],["2022-11-30",29.095],["2022-12-31",29.095],["2023-01-31",29.095],["2023-02-28",29.095],["2023-03-31",29.095],["2023-04-30",29.095],["2023-05-31",29.095],["2023-06-30",29.095],["2023-07-31",29.095],["2023-08-31",29.095],["2023-09-30",29.095],["2023-10-31",29.095],["2023-11-30",29.095],["2023-12-31",29.095],["2024-01-31",29.095],["2024-02-29",29.095],["2024-03-31",29.095],["2024-04-30",29.095],["2024-05-31",29.095],["2024-06-30",29.095],["2024-07-31",29.095],["2024-08-31",29.095],["2024-09-30",29.095],["2024-10-31",29.095],["2024-11-30",29.095],["2024-12-31",29.095],["2025-01-31",29.095],["2025-02-28",29.095],["2025-03-31",29.095],["2025-04-30",29.095],["2025-05-31",29.095],["2025-06-30",29.095],["2025-07-31",29.095],["2025-08-31",29.095],["2025-09-30",29.095],["2025-10-31",29.095],["2025-11-30",29.095],["2025-12-31",29.095],["2026-01-31",29.095],["2026-02-28",29.095],["2026-03-10",29.095],["2026-03-16",29.095],["2026-03-26",29.095],["2026-03-31",29.095],["2026-04-30",29.095],["2026-05-31",29.095],["2026-06-30",29.095],["2026-07-31",29.095],["2026-11-20",29.095]],"cum":[["2015-01-31",0.0,0.0,0.0],["2015-02-28",1.6,0.0,0.0],["2015-03-31",3.3,0.0,0.0],["2015-04-30",4.9,0.0,0.0],["2015-05-31",6.6,0.0,0.0],["2015-06-30",8.3,0.0,0.0],["2015-07-31",10.0,0.1,0.0],["2015-08-31",11.7,0.1,0.0],["2015-09-30",13.4,0.1,0.0],["2015-10-31",15.1,0.1,0.0],["2015-11-30",16.8,0.1,0.0],["2015-12-31",18.5,0.1,0.0],["2016-01-31",20.2,0.1,0.0],["2016-02-29",21.5,1.7,0.0],["2016-03-31",23.0,3.3,0.0],["2016-04-30",24.4,5.0,0.0],["2016-05-31",25.8,6.6,0.0],["2016-06-30",27.2,8.2,0.0],["2016-07-31",28.6,9.9,0.0],["2016-08-31",30.0,11.6,0.0],["2016-09-30",31.4,13.2,0.0],["2016-10-31",32.8,14.9,0.0],["2016-11-30",34.2,16.5,0.0],["2016-12-31",35.6,18.1,0.0],["2017-01-31",37.0,19.8,0.0],["2017-02-28",38.7,19.8,0.0],["2017-03-31",40.6,19.9,0.0],["2017-04-30",42.4,19.9,0.0],["2017-05-31",44.3,19.9,0.0],["2017-06-30",46.1,20.0,0.0],["2017-07-31",48.0,20.0,0.0],["2017-08-31",49.9,20.0,0.0],["2017-09-30",51.7,20.0,0.0],["2017-10-31",53.5,20.1,0.0],["2017-11-30",55.4,20.1,0.0],["2017-12-31",57.2,20.1,0.0],["2018-01-31",59.1,20.1,0.0],["2018-02-28",60.7,20.6,0.0],["2018-03-31",62.5,21.1,0.0],["2018-04-30",64.2,21.6,0.0],["2018-05-02",64.3,21.6,0.0],["2018-05-05",64.5,34.7,0.0],["2018-05-31",66.0,35.1,0.0],["2018-06-30",67.7,35.6,0.0],["2018-07-31",69.5,36.1,0.0],["2018-08-31",71.3,36.6,0.0],["2018-09-30",73.0,37.1,0.0],["2018-10-31",74.8,37.6,0.0],["2018-11-30",76.5,38.1,0.0],["2018-12-31",78.3,38.6,0.0],["2019-01-31",80.1,39.1,0.0],["2019-02-28",81.7,39.1,0.0],["2019-03-31",83.5,39.1,0.0],["2019-04-30",85.2,39.1,0.0],["2019-05-31",87.0,39.1,0.0],["2019-06-30",88.7,39.1,0.0],["2019-07-31",90.5,39.1,0.0],["2019-08-01",90.6,39.1,0.0],["2019-08-04",90.8,141.1,0.0],["2019-08-31",92.3,141.1,0.0],["2019-09-30",94.0,141.1,0.0],["2019-10-31",95.8,141.1,0.0],["2019-11-30",97.5,141.1,0.0],["2019-12-31",99.3,141.1,0.0],["2020-01-31",101.1,141.1,0.0],["2020-02-29",103.2,141.1,0.0],["2020-03-31",105.4,141.1,0.0],["2020-04-30",107.5,141.1,0.0],["2020-05-31",109.7,141.1,0.0],["2020-06-30",111.8,141.1,0.0],["2020-07-31",114.0,141.1,0.0],["2020-08-31",116.2,141.1,0.0],["2020-09-30",118.4,141.1,0.0],["2020-10-31",120.6,141.1,0.0],["2020-11-30",122.7,141.1,0.0],["2020-12-31",124.9,141.1,0.0],["2021-01-31",127.1,141.1,0.0],["2021-02-28",129.0,141.1,0.0],["2021-03-31",131.0,141.1,0.0],["2021-04-30",133.0,141.1,0.0],["2021-05-31",135.0,141.1,0.0],["2021-06-30",137.0,141.1,0.0],["2021-07-20",138.3,141.1,0.0],["2021-07-21",138.4,141.1,0.0],["2021-07-24",138.6,187.1,0.0],["2021-07-31",139.0,187.1,0.0],["2021-08-31",141.0,187.1,0.0],["2021-09-30",143.0,187.1,0.0],["2021-10-31",145.1,187.1,0.0],["2021-11-30",147.0,187.1,0.0],["2021-12-31",149.1,187.1,0.0],["2022-01-31",151.1,187.1,0.0],["2022-02-28",152.6,187.1,0.0],["2022-03-31",154.3,187.1,0.0],["2022-04-30",156.0,187.1,0.0],["2022-05-31",157.7,187.1,0.0],["2022-06-30",159.3,187.1,0.0],["2022-07-31",161.0,187.1,0.0],["2022-08-30",162.7,187.1,0.0],["2022-08-31",162.7,187.1,0.2],["2022-09-30",164.4,187.1,5.6],["2022-10-31",166.1,187.1,11.3],["2022-11-30",167.7,187.1,16.7],["2022-12-31",169.4,187.1,22.4],["2023-01-31",171.1,187.1,28.0],["2023-02-28",173.1,187.1,30.7],["2023-03-31",175.3,187.1,33.7],["2023-04-30",177.4,187.1,36.7],["2023-05-31",179.7,187.1,39.8],["2023-06-30",181.8,187.1,42.7],["2023-07-31",184.0,187.1,45.8],["2023-08-31",186.2,187.1,48.9],["2023-09-30",188.3,187.1,51.8],["2023-10-31",190.6,187.1,54.9],["2023-11-30",192.7,187.1,57.9],["2023-12-31",194.9,187.1,60.9],["2024-01-31",197.1,187.1,64.0],["2024-02-29",198.8,187.1,66.3],["2024-03-31",200.6,187.1,68.8],["2024-04-30",202.3,187.1,71.3],["2024-05-31",204.1,187.1,73.9],["2024-06-30",205.8,187.1,76.3],["2024-07-31",207.6,187.1,78.9],["2024-08-31",209.3,187.1,81.4],["2024-09-30",211.1,187.1,83.9],["2024-10-31",212.8,187.1,86.4],["2024-11-30",214.6,187.1,88.9],["2024-12-31",216.3,187.1,91.5],["2025-01-31",218.1,187.1,94.0],["2025-02-28",219.4,187.1,97.7],["2025-03-31",220.9,187.1,102.0],["2025-04-30",222.3,187.1,106.1],["2025-05-31",223.7,187.1,110.3],["2025-06-30",225.1,187.1,114.5],["2025-07-31",226.5,187.1,118.7],["2025-08-31",228.0,187.1,123.0],["2025-09-30",229.4,187.1,127.1],["2025-10-31",230.8,187.1,131.4],["2025-11-30",232.2,187.1,135.5],["2025-12-31",233.7,187.1,139.7],["2026-01-31",235.1,187.1,144.0],["2026-02-28",236.3,187.1,145.7],["2026-03-10",236.8,187.1,146.3],["2026-03-16",237.1,187.1,146.6],["2026-03-26",237.5,187.1,250.2],["2026-03-31",237.7,187.1,250.5],["2026-04-30",239.0,187.1,252.4],["2026-05-31",240.4,187.1,254.3],["2026-06-30",241.7,187.1,256.1],["2026-07-31",243.1,187.1,258.0],["2026-11-20",243.1,187.1,258.0]],"mcap":[["2015-01-30",35.62],["2015-02-27",45.139],["2015-03-31",43.623],["2015-04-30",47.77],["2015-05-29",47.724],["2015-06-30",45.677],["2015-07-31",48.378],["2015-08-31",45.778],["2015-09-30",45.824],["2015-10-30",51.289],["2015-11-30",52.914],["2015-12-31",52.058],["2016-01-29",45.192],["2016-02-29",45.453],["2016-03-31",50.034],["2016-04-29",51.425],["2016-05-31",56.714],["2016-06-30",53.8],["2016-07-29",55.42],["2016-08-31",53.937],["2016-09-30",48.443],["2016-10-31",52.364],["2016-11-30",50.162],["2016-12-30",47.696],["2017-01-31",55.963],["2017-02-28",57.555],["2017-03-31",58.479],["2017-04-28",61.261],["2017-05-31",63.842],["2017-06-30",61.677],["2017-07-31",65.258],["2017-08-31",68.629],["2017-09-29",67.141],["2017-10-31",73.92],["2017-11-30",75.35],["2017-12-29",73.841],["2018-01-31",83.137],["2018-02-28",85.037],["2018-03-29",85.239],["2018-04-30",88.795],["2018-05-31",96.081],["2018-06-29",101.333],["2018-07-31",103.781],["2018-08-31",115.533],["2018-09-28",120.338],["2018-10-31",104.989],["2018-11-30",109.211],["2018-12-31",104.782],["2019-01-31",117.017],["2019-02-28",126.174],["2019-03-29",122.067],["2019-04-30",128.146],["2019-05-31",117.494],["2019-06-28",118.179],["2019-07-31",120.51],["2019-08-30",136.873],["2019-09-30",130.182],["2019-10-31",138.65],["2019-11-29",144.483],["2019-12-31",144.262],["2020-01-31",162.803],["2020-02-28",152.167],["2020-03-31",128.924],["2020-04-30",145.593],["2020-05-29",157.486],["2020-06-30",168.784],["2020-07-31",176.924],["2020-08-31",248.111],["2020-09-30",228.701],["2020-10-30",211.366],["2020-11-30",225.015],["2020-12-31",204.222],["2021-01-29",207.003],["2021-02-26",198.964],["2021-03-31",195.132],["2021-04-30",213.046],["2021-05-28",220.481],["2021-06-30",226.194],["2021-07-30",235.042],["2021-08-31",259.699],["2021-09-30",265.524],["2021-10-29",293.397],["2021-11-30",280.686],["2021-12-31",250.318],["2022-01-31",230.071],["2022-02-28",208.214],["2022-03-31",210.197],["2022-04-29",174.87],["2022-05-31",159.439],["2022-06-30",164.215],["2022-07-29",183.1],["2022-08-31",156.12],["2022-09-30",143.84],["2022-10-31",161.127],["2022-11-30",160.25],["2022-12-30",132.59],["2023-01-31",164.779],["2023-02-28",160.501],["2023-03-31",199.78],["2023-04-28",194.208],["2023-05-31",217.572],["2023-06-30",205.767],["2023-07-31",219.385],["2023-08-31",215.481],["2023-09-29",197.305],["2023-10-31",194.604],["2023-11-30",243.839],["2023-12-29",254.72],["2024-01-31",272.938],["2024-02-29",299.555],["2024-03-28",292.145],["2024-04-30",261.141],["2024-05-31",227.172],["2024-06-28",249.13],["2024-07-31",247.93],["2024-08-30",241.772],["2024-09-30",261.667],["2024-10-31",278.55],["2024-11-29",315.8],["2024-12-04",352.052],["2024-12-31",319.954],["2025-01-31",328.72],["2025-02-28",286.23],["2025-03-31",258.0],["2025-04-30",257.42],["2025-05-30",253.69],["2025-06-30",260.69],["2025-07-31",246.96],["2025-08-29",244.98],["2025-09-30",225.62],["2025-10-31",247.91],["2025-11-28",219.47],["2025-12-31",248.22],["2026-01-30",198.92],["2026-02-27",182.52],["2026-03-31",172.3],["2026-04-30",162.94],["2026-05-29",156.51],["2026-06-30",128.3],["2026-07-31",150.71],["2026-08-31",211.96],["2026-09-30",188.94],["2026-10-30",188.61],["2026-11-20",148.65]],"rep_dates":["2016-01-31","2017-01-31","2018-01-31","2019-01-31","2020-01-31","2021-01-31","2022-01-31","2023-01-31","2024-01-31","2024-04-30","2024-07-31","2024-10-31","2025-01-31","2025-04-30","2025-07-31","2025-10-31","2026-01-31","2026-04-30","2026-07-31"],"shares":[["2015-01-31",650.6],["2015-02-28",652.2],["2015-03-31",653.9],["2015-04-30",655.6],["2015-05-31",657.3],["2015-06-30",659.0],["2015-07-31",660.7],["2015-08-31",662.4],["2015-09-30",664.1],["2015-10-31",665.8],["2015-11-30",667.5],["2015-12-31",669.2],["2016-01-31",670.9],["2016-02-29",673.8],["2016-03-31",676.9],["2016-04-30",679.9],["2016-05-31",683.0],["2016-06-30",686.0],["2016-07-31",689.1],["2016-08-31",692.2],["2016-09-30",695.2],["2016-10-31",698.3],["2016-11-30",701.3],["2016-12-31",704.4],["2017-01-31",707.5],["2017-02-28",709.2],["2017-03-31",711.1],["2017-04-30",712.9],["2017-05-31",714.8],["2017-06-30",716.7],["2017-07-31",718.6],["2017-08-31",720.5],["2017-09-30",722.3],["2017-10-31",724.2],["2017-11-30",726.0],["2017-12-31",728.0],["2018-01-31",729.9],["2018-02-28",731.9],["2018-03-31",734.2],["2018-04-30",736.4],["2018-05-02",736.6],["2018-05-05",749.8],["2018-05-31",751.7],["2018-06-30",753.9],["2018-07-31",756.2],["2018-08-31",758.5],["2018-09-30",760.8],["2018-10-31",763.0],["2018-11-30",765.3],["2018-12-31",767.6],["2019-01-31",769.9],["2019-02-28",771.5],["2019-03-31",773.2],["2019-04-30",775.0],["2019-05-31",776.8],["2019-06-30",778.5],["2019-07-31",780.3],["2019-08-01",780.3],["2019-08-04",882.5],["2019-08-31",884.1],["2019-09-30",885.8],["2019-10-31",887.6],["2019-11-30",889.3],["2019-12-31",891.1],["2020-01-31",892.9],["2020-02-29",894.9],["2020-03-31",897.1],["2020-04-30",899.2],["2020-05-31",901.4],["2020-06-30",903.6],["2020-07-31",905.8],["2020-08-31",908.0],["2020-09-30",910.1],["2020-10-31",912.3],["2020-11-30",914.4],["2020-12-31",916.7],["2021-01-31",918.9],["2021-02-28",920.7],["2021-03-31",922.7],["2021-04-30",924.7],["2021-05-31",926.7],["2021-06-30",928.7],["2021-07-20",930.0],["2021-07-21",930.1],["2021-07-24",976.3],["2021-07-31",976.8],["2021-08-31",978.8],["2021-09-30",980.8],["2021-10-31",982.8],["2021-11-30",984.8],["2021-12-31",986.8],["2022-01-31",988.9],["2022-02-28",990.4],["2022-03-31",992.1],["2022-04-30",993.7],["2022-05-31",995.4],["2022-06-30",997.1],["2022-07-31",998.8],["2022-08-30",1000.4],["2022-08-31",1000.3],["2022-09-30",996.5],["2022-10-31",992.5],["2022-11-30",988.7],["2022-12-31",984.8],["2023-01-31",980.9],["2023-02-28",980.2],["2023-03-31",979.3],["2023-04-30",978.5],["2023-05-31",977.6],["2023-06-30",976.8],["2023-07-31",975.9],["2023-08-31",975.1],["2023-09-30",974.3],["2023-10-31",973.4],["2023-11-30",972.6],["2023-12-31",971.7],["2024-01-31",970.9],["2024-02-29",971.1],["2024-03-31",971.0],["2024-04-30",971.0],["2024-05-31",966.6],["2024-06-30",962.4],["2024-07-31",958.0],["2024-08-31",957.3],["2024-09-30",956.7],["2024-10-31",956.0],["2024-11-30",958.0],["2024-12-31",960.0],["2025-01-31",962.0],["2025-02-28",960.8],["2025-03-31",959.4],["2025-04-30",958.0],["2025-05-31",957.0],["2025-06-30",956.0],["2025-07-31",955.0],["2025-08-31",950.6],["2025-09-30",946.4],["2025-10-31",942.0],["2025-11-30",937.8],["2025-12-31",933.4],["2026-01-31",929.0],["2026-02-28",926.8],["2026-03-10",926.0],["2026-03-16",925.6],["2026-03-26",821.8],["2026-03-31",821.4],["2026-04-30",819.0],["2026-05-31",820.3],["2026-06-30",821.7],["2026-07-31",823.0],["2026-11-20",823.0]],"price":[["2015-01-30",54.75],["2015-02-27",69.22],["2015-03-31",66.71],["2015-04-30",72.87],["2015-05-29",72.62],["2015-06-30",69.32],["2015-07-31",73.22],["2015-08-31",69.11],["2015-09-30",69.0],["2015-10-30",77.04],["2015-11-30",79.27],["2015-12-31",77.79],["2016-01-29",67.37],["2016-02-29",67.46],["2016-03-31",73.91],["2016-04-29",75.65],["2016-05-31",83.04],["2016-06-30",78.43],["2016-07-29",80.45],["2016-08-31",77.92],["2016-09-30",69.68],["2016-10-31",74.99],["2016-11-30",71.53],["2016-12-30",67.72],["2017-01-31",79.1],["2017-02-28",81.16],["2017-03-31",82.24],["2017-04-28",85.94],["2017-05-31",89.31],["2017-06-30",86.06],["2017-07-31",90.82],["2017-08-31",95.26],["2017-09-29",92.96],["2017-10-31",102.07],["2017-11-30",103.78],["2017-12-29",101.45],["2018-01-31",113.91],["2018-02-28",116.18],["2018-03-29",116.12],["2018-04-30",120.57],["2018-05-31",127.81],["2018-06-29",134.42],["2018-07-31",137.23],["2018-08-31",152.31],["2018-09-28",158.21],["2018-10-31",137.59],["2018-11-30",142.71],["2018-12-31",136.51],["2019-01-31",152.0],["2019-02-28",163.55],["2019-03-29",157.89],["2019-04-30",165.36],["2019-05-31",151.26],["2019-06-28",151.83],["2019-07-31",154.45],["2019-08-30",154.83],["2019-09-30",146.97],["2019-10-31",156.21],["2019-11-29",162.48],["2019-12-31",161.9],["2020-01-31",182.34],["2020-02-28",170.05],["2020-03-31",143.71],["2020-04-30",161.91],["2020-05-29",174.73],["2020-06-30",186.79],["2020-07-31",195.33],["2020-08-31",273.25],["2020-09-30",251.29],["2020-10-30",231.7],["2020-11-30",246.07],["2020-12-31",222.79],["2021-01-29",225.32],["2021-02-26",216.13],["2021-03-31",211.47],["2021-04-30",230.39],["2021-05-28",237.96],["2021-06-30",243.56],["2021-07-30",240.65],["2021-08-31",265.33],["2021-09-30",270.73],["2021-10-29",298.57],["2021-11-30",285.03],["2021-12-31",253.66],["2022-01-31",232.66],["2022-02-28",210.23],["2022-03-31",211.87],["2022-04-29",175.98],["2022-05-31",160.17],["2022-06-30",164.7],["2022-07-29",183.35],["2022-08-31",156.08],["2022-09-30",144.35],["2022-10-31",162.34],["2022-11-30",162.08],["2022-12-30",134.62],["2023-01-31",168.0],["2023-02-28",163.75],["2023-03-31",204.0],["2023-04-28",198.47],["2023-05-31",222.55],["2023-06-30",210.65],["2023-07-31",224.79],["2023-08-31",220.99],["2023-09-29",202.51],["2023-10-31",199.92],["2023-11-30",250.72],["2023-12-29",262.12],["2024-01-31",281.13],["2024-02-29",308.48],["2024-03-28",300.86],["2024-04-30",268.94],["2024-05-31",235.02],["2024-06-28",258.79],["2024-07-31",258.8],["2024-08-30",252.54],["2024-09-30",273.52],["2024-10-31",291.37],["2024-11-29",329.68],["2024-12-04",367.4],["2024-12-31",333.29],["2025-01-31",341.7],["2025-02-28",297.9],["2025-03-31",268.92],["2025-04-30",268.71],["2025-05-30",265.08],["2025-06-30",272.69],["2025-07-31",258.6],["2025-08-29",257.63],["2025-09-30",238.4],["2025-10-31",263.17],["2025-11-28",233.97],["2025-12-31",265.94],["2026-01-30",214.09],["2026-02-27",196.91],["2026-03-31",209.77],["2026-04-30",198.95],["2026-05-29",190.81],["2026-06-30",156.15],["2026-07-31",183.12],["2026-08-31",257.54],["2026-09-30",229.57],["2026-10-30",229.17],["2026-11-20",180.62]],"fy":[{"fy":"FY2016","start_date":"2015-01-31","end_date":"2016-01-31","start_sh":650.596,"end_sh":670.929,"emp":20.216,"acq":0.117,"oth":0,"rep":0,"rep_usd":0,"sbc":593.628},{"fy":"FY2017","start_date":"2016-01-31","end_date":"2017-01-31","start_sh":670.929,"end_sh":707.46,"emp":16.834,"acq":19.697,"oth":0,"rep":0,"rep_usd":0,"sbc":820.367},{"fy":"FY2018","start_date":"2017-01-31","end_date":"2018-01-31","start_sh":707.46,"end_sh":729.853,"emp":22.06,"acq":0.333,"oth":0,"rep":0,"rep_usd":0,"sbc":997.013},{"fy":"FY2019","start_date":"2018-01-31","end_date":"2019-01-31","start_sh":730,"end_sh":770,"emp":21,"acq":13,"oth":6,"rep":0,"rep_usd":0,"sbc":1283},{"fy":"FY2020","start_date":"2019-01-31","end_date":"2020-01-31","start_sh":770,"end_sh":893,"emp":21,"acq":102,"oth":0,"rep":0,"rep_usd":0,"sbc":1785},{"fy":"FY2021","start_date":"2020-01-31","end_date":"2021-01-31","start_sh":893,"end_sh":919,"emp":26,"acq":0,"oth":0,"rep":0,"rep_usd":0,"sbc":2190},{"fy":"FY2022","start_date":"2021-01-31","end_date":"2022-01-31","start_sh":919,"end_sh":989,"emp":24,"acq":46,"oth":0,"rep":0,"rep_usd":0,"sbc":2779},{"fy":"FY2023","start_date":"2022-01-31","end_date":"2023-01-31","start_sh":989,"end_sh":981,"emp":20,"acq":0,"oth":0,"rep":28,"rep_usd":4000,"sbc":3279},{"fy":"FY2024","start_date":"2023-01-31","end_date":"2024-01-31","start_sh":981,"end_sh":971,"emp":26,"acq":0,"oth":0,"rep":36,"rep_usd":7674,"sbc":2787},{"fy":"FY2025","start_date":"2024-01-31","end_date":"2025-01-31","start_sh":971,"end_sh":962,"emp":21,"acq":0,"oth":0,"rep":30,"rep_usd":7757,"sbc":3183},{"fy":"FY2026","start_date":"2025-01-31","end_date":"2026-01-31","start_sh":962,"end_sh":929,"emp":17,"acq":0,"oth":0,"rep":50,"rep_usd":12677,"sbc":3509},{"fy":"FY2027","start_date":"2026-01-31","end_date":"2026-07-31","start_sh":929,"end_sh":823,"emp":8,"acq":0,"oth":0,"rep":114,"rep_usd":27366,"sbc":null}],"buys":[["2022-08-30","2023-01-31",4000,28],["2023-02-01","2024-01-31",7674,36],["2024-02-01","2025-01-31",7757,30],["2025-02-01","2026-01-31",12677,50],["2026-03-16","2026-03-26",25000,103],["2026-02-01","2026-07-31",2366,11]],"paid":[["2022-08-30","2023-01-31",144.94,"$145",0,"FY23"],["2023-02-01","2024-01-31",210.3,"$210",0,"FY24"],["2024-02-01","2025-01-31",260.12,"$260",0,"FY25"],["2025-02-01","2026-01-31",254.21,"$254",0,"FY26"],["2026-02-01","2026-07-31",240.0,"$240*",1,"FY27"]],"real_from":"2026-08-31"};
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function (id) { return document.getElementById(id); };
+  var utc = function (s) { return Date.parse(s + 'T00:00:00Z'); };
+  var DAY = 864e5;
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  var monLong = function (ms) { var d = new Date(ms); return MON[d.getUTCMonth()].charAt(0) + MON[d.getUTCMonth()].slice(1).toLowerCase() + ' ' + d.getUTCFullYear(); };
+  var thou = function (n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var NS = 'http://www.w3.org/2000/svg';
+  function sv(name, attrs, parent) { var e = document.createElementNS(NS, name); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function interp(arr, t) {
+    if (t <= arr[0][0]) return arr[0][1];
+    if (t >= arr[arr.length - 1][0]) return arr[arr.length - 1][1];
+    for (var i = 1; i < arr.length; i++) {
+      if (t <= arr[i][0]) { var a = arr[i - 1], b = arr[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); }
+    }
+    return arr[arr.length - 1][1];
+  }
+
+  /* ---------- acts and scenes ---------- */
+  var ACTS = [
+    { id: 1, name: 'Issue: shares go up', a: '2015-01-31', b: '2022-01-31' },
+    { id: 2, name: 'Retire: shares come back', a: '2022-01-31', b: '2026-11-20' }
+  ];
+  ACTS.forEach(function (x) { x.A = utc(x.a); x.B = utc(x.b); });
+  var SC = [
+    { a: '2015-01-31', b: '2016-01-31', dur: 5, act: 1, title: 'FY16: the quiet drip',
+      body: 'Shares outstanding rise from 651M to 671M, up 3.1%. All 20M new shares go to employees through options, RSUs and the stock purchase plan. Stock pay costs $594M, and nothing is bought back.', big: ['+3.1%', 'shares outstanding, FY16'], ev: [] },
+    { a: '2016-01-31', b: '2017-01-31', dur: 5, act: 1, title: 'FY17: employees plus a deal',
+      body: 'Shares rise 5.4% to 707M: 17M to employees and 19.7M for acquisitions, though the filing lines do not name the deal. Stock pay reaches $820M.', big: ['+5.4%', 'shares outstanding, FY17'], ev: [] },
+    { a: '2017-01-31', b: '2018-01-31', dur: 4, act: 1, title: 'FY18: $1B of stock pay',
+      body: 'Employees receive 22M shares and stock pay reaches $997M. Shares end the year at 730M, up 3.2%.', big: ['$1.0B', 'stock pay in FY18'], ev: [] },
+    { a: '2018-01-31', b: '2019-01-31', dur: 5, act: 1, title: 'FY19: MuleSoft',
+      body: 'The filing shows 13M shares issued for acquisitions, matching MuleSoft, which closed in May 2018 ($1.7B of stock at fair value). Employees get 21M, and 6M more come from a convertible-note settlement. Shares reach 770M, up 5.5%.', big: ['+13M', 'shares issued for MuleSoft'], ev: ['mule'] },
+    { a: '2019-01-31', b: '2020-01-31', dur: 7, act: 1, title: 'FY20: Tableau, the big one',
+      body: 'Tableau closes on Aug 1, 2019. The filing shows 102M shares issued for acquisitions that year ($15.2B of stock at fair value), about 13% of the share count. Shares go from 770M to 893M, up 16%.', big: ['+102M', 'shares issued for acquisitions, FY20'], ev: ['tab'] },
+    { a: '2020-01-31', b: '2021-01-31', dur: 4, act: 1, title: 'FY21: no deal, still diluting',
+      body: 'Employees get 26M shares and stock pay reaches $2.2B. Shares hit 919M, up 2.9%, without a single acquisition share.', big: ['$2.2B', 'stock pay in FY21'], ev: [] },
+    { a: '2021-01-31', b: '2022-01-31', dur: 6, act: 1, title: 'FY22: Slack',
+      body: 'Slack closes on Jul 21, 2021. The filing shows 46M shares issued for acquisitions ($11.1B of stock at fair value), plus 24M to employees. Shares reach 989M, up 7.6%, the high among reported year-ends.', big: ['989M', 'shares, Jan 2022'], ev: ['slack'] },
+
+    { a: '2022-01-31', b: '2022-09-15', dur: 4, act: 2, title: 'FY23, first half: still issuing',
+      body: 'Employees keep receiving shares and nothing is bought back. The stock is sliding. At the end of August the board authorizes $10B of repurchases, the first in company history.', big: ['$10B', 'first buyback authorization'], ev: ['auth1'] },
+    { a: '2022-09-15', b: '2023-03-15', dur: 5, act: 2, title: 'FY23: the first $4B',
+      body: 'Salesforce buys 28M shares for $4.0B, an average of $144.94. Employees still receive 20M, so shares end the year at 981M, down 0.8%. In February the authorization rises by $10B, to $20B.', big: ['$144.94', 'average price of FY23 buybacks'], ev: ['auth2'] },
+    { a: '2023-03-15', b: '2024-03-15', dur: 6, act: 2, title: 'FY24: buybacks outrun issuance',
+      body: '36M shares are retired for $7.7B at $210.30, against 26M issued to employees. Shares fall to 971M, down 1.0%. In February 2024 the board adds $10B, to $30B, and declares the first dividend, $0.40 a share.', big: ['36M vs 26M', 'retired vs issued, FY24'], ev: ['div'] },
+    { a: '2024-03-15', b: '2025-01-31', dur: 5, act: 2, title: 'FY25: dividends join buybacks',
+      body: '30M shares are bought for $7.8B at $260.12, against 21M issued to employees. Shares end at 962M, down 0.9%. Dividends add another $1.5B paid out. Market cap peaks near $352B in December 2024.', big: ['$7.8B', 'buybacks in FY25, plus $1.5B of dividends'], ev: [] },
+    { a: '2025-01-31', b: '2025-09-30', dur: 4, act: 2, title: 'FY26, first half: steady buying',
+      body: 'Shares drift from 962M to 955M by July as buybacks slightly outrun issuance. Around September the total authorization reaches $50B, a date taken from a filing label and low confidence.', big: ['962M \u2192 955M', 'shares outstanding, Jan to Jul 2025'], ev: ['auth3'] },
+    { a: '2025-09-30', b: '2026-01-31', dur: 5, act: 2, title: 'FY26: 50M shares, $12.7B',
+      body: 'Informatica closes in November for $9.5B, all cash, so it adds no shares. Shares fall to 929M: 50M bought for $12.7B at $254.21, against 17M issued to employees. Net change for the year: down 3.4%. The 10-K shows $351M of cash paid for taxes as RSUs vest; the number of shares withheld is not disclosed.', big: ['\u22123.4%', 'net share change, FY26'], ev: ['info', 'nss'] },
+    { a: '2026-01-31', b: '2026-03-10', dur: 3, act: 2, title: 'February: a new $50B',
+      body: 'On Feb 25 a new $50B authorization replaces what was left of the old ones. Total debt is $14.4B, and about to change.', big: ['$50B', 'new authorization, Feb 25'], ev: ['auth4'] },
+    { a: '2026-03-10', b: '2026-04-30', dur: 6, act: 2, title: 'The $25B accelerated repurchase',
+      body: 'Salesforce sells $25B of notes and pays banks on Mar 16, and 103M shares, about 80% of the expected total, are delivered that day. Shares outstanding drop from 929M to 819M by April 30, down 11.8%. Total debt goes from $14.4B to $39.3B by July.', big: ['−103M', 'shares retired in one day'], ev: ['asr'] },
+    { a: '2026-04-30', b: '2026-07-31', dur: 5, act: 2, title: 'Q2 FY27: the count edges back up',
+      body: 'Outstanding shares tick up from 819M to 823M. For the six months to July, 114M shares were retired (103M from the ASR, 11M open-market at about $192) and, by my arithmetic, about 8M issued. Unvested RSUs rise from 26M to 39M, and $22.9B of authorization remains.', big: ['819M → 823M', 'shares outstanding, Q1 to Q2 FY27'], ev: [] },
+    { a: '2026-07-31', b: '2026-11-20', dur: 7, act: 2, title: 'Where it stands',
+      body: 'Shares hold near 823M, about 18% below the roughly 1,000M of mid-2022. Since 2022 Salesforce has retired 258M shares for $59.5B, an average of $231. At $180.62 those shares are worth about $46.6B, $12.9B less than paid. The ASR\u2019s final settlement was due around October and could deliver the remaining ~20% of its shares; no filing confirming it was found.', big: ['−$12.9B', 'buybacks vs today’s price'], ev: ['asr2'] }
+  ];
+  var total = 0;
+  SC.forEach(function (s) { s.A = utc(s.a); s.B = utc(s.b); s.start = total; total += s.dur; });
+  var T0 = SC[0].A, T1 = SC[SC.length - 1].B, LAST = SC.length - 1, TX1 = T1 + 60 * DAY;
+
+  /* ---------- data ---------- */
+  var SHN = D.shares.map(function (r) { return [utc(r[0]), r[1]]; });
+  var PX = D.price.map(function (r) { return [utc(r[0]), r[1]]; });
+  var FY = D.fy.map(function (f) {
+    var o = {}; for (var k in f) o[k] = f[k];
+    o.A = utc(f.start_date); o.B = utc(f.end_date);
+    o.gross = (f.emp + f.acq + f.oth) / f.start_sh * 100; o.ret = f.rep / f.start_sh * 100; o.net = o.gross - o.ret;
+    return o;
+  });
+  var BUYS = D.buys.map(function (b) { return { a: utc(b[0]), b: utc(b[1]), usd: b[2], sh: b[3] }; });
+  var PAID = D.paid.map(function (p) { return { a: utc(p[0]), b: utc(p[1]), price: p[2], label: p[3], est: !!p[4], short: p[5] }; });
+  var SBC_END = utc('2026-01-31');
+  function buyAt(t) {
+    var usd = 0, sh = 0;
+    BUYS.forEach(function (b) { var f = clamp((t - b.a) / (b.b - b.a), 0, 1); usd += b.usd * f; sh += b.sh * f; });
+    return { usd: usd, sh: sh };
+  }
+  function sbcAt(t, from) {
+    var s = 0;
+    FY.forEach(function (f) { if (f.sbc == null) return; var lo = Math.max(f.A, from || 0); if (t > lo) s += f.sbc * clamp((Math.min(t, f.B) - lo) / (f.B - f.A), 0, 1); });
+    return s;
+  }
+  var BUY_FROM = utc('2022-08-31'), SBC_FROM = utc('2022-01-31');
+
+  /* ---------- clock ---------- */
+  function sceneIndexAt(pos) { for (var i = 0; i < SC.length; i++) { if (pos < SC[i].start + SC[i].dur) return i; } return LAST; }
+  function dateAt(pos) {
+    pos = clamp(pos, 0, total);
+    var s = SC[sceneIndexAt(pos)], f = clamp((pos - s.start) / s.dur, 0, 1);
+    return s.A + (s.B - s.A) * f;
+  }
+  function posAt(t) {
+    if (t <= T0) return 0;
+    for (var i = 0; i < SC.length; i++) { if (t <= SC[i].B) return SC[i].start + SC[i].dur * (t - SC[i].A) / (SC[i].B - SC[i].A); }
+    return total;
+  }
+
+  /* ---------- pop-ups on the share-count panel ---------- */
+  var COL = { up: 'var(--hot)', down: 'var(--teal)', cap: 'var(--violet)' };
+  var POPS = [
+    { id: 'mule', d: '2018-05-02', text: 'MuleSoft: +13M shares', k: 'up', detail: 'Closed May 2018. 13M is the filing\u2019s FY19 line for shares issued for business combinations; $1.7B of stock was issued at fair value.' },
+    { id: 'tab', d: '2019-08-01', text: 'Tableau: +102M shares', k: 'up', detail: 'Closed Aug 1, 2019. 102M is the filing\u2019s FY20 line for shares issued for business combinations, with $15.2B of stock at fair value.' },
+    { id: 'slack', d: '2021-07-21', text: 'Slack: +46M shares', k: 'up', detail: 'Closed Jul 21, 2021. 46M is the filing\u2019s FY22 line for shares issued for business combinations, with $11.1B of stock at fair value.' },
+    { id: 'auth1', d: '2022-08-31', text: 'First buyback: $10B authorized', k: 'cap', detail: 'Board authorization, Aug 31, 2022.' },
+    { id: 'auth2', d: '2023-02-28', text: '+$10B, to $20B', k: 'cap', detail: 'Authorization increase, February 2023.' },
+    { id: 'div', d: '2024-02-28', text: 'First dividend, +$10B to $30B', k: 'cap', detail: 'First dividend, $0.40 a share, declared Feb 28, 2024. The authorization rose to $30B the same month.' },
+    { id: 'nss', d: '2026-01-10', text: '$351M tax cash on vesting RSUs', k: 'cap', detail: 'The FY26 cash flow statement shows $351M paid for taxes on net share settlement. The number of shares withheld is not disclosed.' },
+    { id: 'auth3', d: '2025-09-15', text: '~Sep 2025: +$20B, to $50B', k: 'cap', est: true, detail: 'Date taken from an XBRL context label, low confidence.' },
+    { id: 'info', d: '2025-11-18', text: 'Informatica: $9.5B cash, no shares', k: 'cap', detail: 'Closed Nov 2025, paid entirely in cash, so it issued no shares.' },
+    { id: 'auth4', d: '2026-02-25', text: 'New $50B authorization', k: 'cap', detail: 'A new $50B authorization replaces unused earlier ones.' },
+    { id: 'asr', d: '2026-03-16', text: '$25B ASR: −103M shares', k: 'down', detail: 'Signed Mar 11, paid Mar 16. 103M shares, about 80% of the expected total, were delivered on the payment date. Funded by $25B of notes.' },
+    { id: 'asr2', d: '2026-10-31', text: 'ASR final settlement: not found', k: 'cap', est: true, detail: 'The filing said final settlement was expected around October 2026. No filing confirming it was found by Nov 22, 2026.' }
+  ];
+  var popBy = {}; POPS.forEach(function (p) { popBy[p.id] = p; });
+  var LIFE = 2.6, items = [], seen = {};
+  SC.forEach(function (s) { (s.ev || []).forEach(function (id) { var p = popBy[id]; if (p && !seen[id]) { seen[id] = 1; items.push(p); } }); });
+  items.forEach(function (it) { it.t = utc(it.d); it.pos = posAt(it.t); it.v = interp(SHN, it.t); it.col = COL[it.k]; });
+  items.sort(function (a, b) { return a.pos - b.pos; });
+
+  /* ---------- state ---------- */
+  var st = { mode: 'auto', pos: total, playing: false, speed: 1, scene: -2, act: -1, last: 0, lo: 0, hi: total, sel: null, reach: total };
+  var box = $('left'), svg = $('chart'), cardsEl = $('cards'), tip = $('tip');
+  var G = {}, disp = {};
+  items.forEach(function (it) {
+    var c = document.createElement('div'); c.className = 'card' + (it.est ? ' est' : '');
+    c.style.setProperty('--c', it.col);
+    var i = document.createElement('i'), s = document.createElement('span'); s.textContent = it.text;
+    c.appendChild(i); c.appendChild(s); cardsEl.appendChild(c); it.el = c;
+  });
+
+  /* ---------- left chart: share count over price ---------- */
+  var R = { a: T0, b: TX1, fy: 2015, ty: 2026 };
+  var M2 = 'sh';
+  var ACQ = D.acq.map(function (r) { return [utc(r[0]), r[1]]; });
+  var CUM = D.cum.map(function (r) { return [utc(r[0]), r[1], r[2], r[3]]; });
+  function cumAt(tm) {
+    if (tm <= CUM[0][0]) return [CUM[0][1], CUM[0][2], CUM[0][3]];
+    if (tm >= CUM[CUM.length - 1][0]) { var z = CUM[CUM.length - 1]; return [z[1], z[2], z[3]]; }
+    for (var i = 1; i < CUM.length; i++) {
+      if (tm <= CUM[i][0]) { var a = CUM[i - 1], b = CUM[i], f = (tm - a[0]) / (b[0] - a[0]); return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f]; }
+    }
+  }
+  function sgn(v) { return (v >= 0 ? '+' : '\u2212') + Math.abs(Math.round(v)) + 'M'; }
+  var PM = 'price', SHOWPAID = true;
+  var CAP = D.mcap.map(function (r) { return [utc(r[0]), r[1]]; });
+  var REPD = D.rep_dates.map(utc), REAL0 = utc(D.real_from), hoverTip = false;
+  function niceStep(raw) { var c = [5, 10, 20, 25, 50, 100, 200, 400]; for (var i = 0; i < c.length; i++) if (c[i] >= raw) return c[i]; return 400; }
+  function ticksFor(lo, hi, n) { var s = niceStep((hi - lo) / n), out = []; for (var v = Math.ceil(lo / s) * s; v <= hi + 1e-6; v += s) out.push(v); return out; }
+  function visRange(arr, a, b) {
+    var s = interp(arr, a), e = interp(arr, b), lo = Math.min(s, e), hi = Math.max(s, e);
+    arr.forEach(function (p) { if (p[0] > a && p[0] < b) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); } });
+    return [lo, hi];
+  }
+  function fmtDay(ms) { var d = new Date(ms); return monLong(ms).split(' ')[0] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear(); }
+  function fmtM(v) { return (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : v.toFixed(1)) + 'M'; }
+  function placeTip(ev) {
+    var r = $('stage').getBoundingClientRect(), tx = ev.clientX - r.left + 14, ty = ev.clientY - r.top + 14;
+    tip.hidden = false;
+    if (tx + tip.offsetWidth > r.width) tx = ev.clientX - r.left - tip.offsetWidth - 14;
+    if (ty + tip.offsetHeight > r.height) ty = ev.clientY - r.top - tip.offsetHeight - 14;
+    tip.style.left = Math.max(4, tx) + 'px'; tip.style.top = Math.max(4, ty) + 'px';
+  }
+  var C = { sh: 'var(--net)', px: 'var(--accent)', emp: 'var(--hot)', deal: 'var(--gold)', ret: 'var(--teal)', cap: 'var(--violet)' };
+  function showTipText(ev, title, lines, tcol) {
+    tip.replaceChildren();
+    var b = document.createElement('b'); b.textContent = title; if (tcol) b.style.color = tcol; tip.appendChild(b);
+    lines.forEach(function (l) {
+      if (!l) return;
+      var d = document.createElement('div');
+      if (typeof l === 'string') d.textContent = l; else { d.textContent = l[0]; d.style.color = l[1]; d.style.fontWeight = '500'; }
+      tip.appendChild(d);
+    });
+    placeTip(ev);
+  }
+  function showTip(ev, it) {
+    showTipText(ev, it.text, [(it.est ? '~' : '') + fmtDay(it.t) + (it.est ? ' (approximate)' : ''), it.detail, 'Click to jump to this moment.'], it.col);
+  }
+  function live(it) { return it.mks[0].classList.contains('on') || it.mks[0].classList.contains('ghost'); }
+  function plotTime(ev) {
+    if (!G.x) return null;
+    var r = svg.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    if (px < G.xL || px > G.xR || py < G.p1t - 14 || py > G.p2t + G.p2h) return null;
+    var tm = R.a + (px - G.xL) / (G.xR - G.xL) * (R.b - R.a);
+    return (tm > dateAt(st.reach) || tm > T1 || tm < T0) ? null : tm;
+  }
+  function hideHover() { if (G.hv) G.hv.setAttribute('display', 'none'); if (hoverTip) { tip.hidden = true; hoverTip = false; } }
+  function setHov(it, on) { it.mks.forEach(function (m) { m.classList.toggle('hov', on); }); }
+  function selectItem(it, ev) {
+    if (st.sel === it) { st.sel = null; frame(performance.now(), true); return; }
+    setPlaying(false);
+    st.pos = clamp(it.pos + 0.01, st.lo, st.hi); st.sel = it;
+    syncBigplay(); frame(performance.now(), true);
+    if (ev) showTip(ev, it);
+  }
+  function bindDot(c, it) {
+    c.addEventListener('pointermove', function (ev) { ev.stopPropagation(); if (!live(it)) return; hideHover(); setHov(it, true); showTip(ev, it); });
+    c.addEventListener('pointerleave', function () { setHov(it, false); tip.hidden = true; });
+    c.addEventListener('click', function (ev) { ev.stopPropagation(); if (!live(it)) return; selectItem(it, ev); });
+  }
+
+  function layout() {
+    var W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) return;
+    var narrow = W < 520;
+    G.W = W; G.H = H;
+    items.forEach(function (it) { it.inr = it.t >= R.a && it.t <= R.b; it.el.style.display = ''; it.w = it.el.offsetWidth || 120; it.h = it.el.offsetHeight || 24; });
+    var cardH = (items[0].h || 24) + 5, cap = clamp(Math.floor(H * 0.2 / cardH), 1, 2);
+    var xL = narrow ? 12 : 50, xR = W - 14, axisB = 24;
+    var x = function (t) { return xL + (t - R.a) / (R.b - R.a) * (xR - xL); };
+    items.forEach(function (it) { it.px = x(it.t); it.cx = clamp(it.px, it.w / 2 + 4, W - it.w / 2 - 4); });
+    var maxLv = 0;
+    items.forEach(function (it, i) {
+      var lv = 0;
+      if (it.inr) for (; lv < cap - 1; lv++) {
+        var clash = false;
+        for (var j = 0; j < i; j++) { var o = items[j]; if (o.inr && o.lv === lv && o.pos + LIFE > it.pos && Math.abs(o.cx - it.cx) < (o.w + it.w) / 2 + 6) { clash = true; break; } }
+        if (!clash) break;
+      }
+      it.lv = lv; if (it.inr) maxLv = Math.max(maxLv, lv);
+    });
+    var bandH = (maxLv + 1) * cardH + 6;
+    var p1t = bandH + 18, avail = H - p1t - axisB - 46, p1h = avail * 0.52, p2t = p1t + p1h + 46, p2h = avail - p1h;
+    var full = R.a <= T0 && R.b >= TX1 - DAY, hiT = Math.min(R.b, T1);
+    var SER = PM === 'cap' ? CAP : PX; G.ser = SER;
+    var s1 = visRange(SHN, R.a, hiT), s2 = visRange(SER, R.a, hiT), lo1, hi1, lo2, hi2;
+    if (full) { lo1 = 600; hi1 = 1040; lo2 = 0; hi2 = PM === 'cap' ? 400 : 380; }
+    else {
+      lo1 = Math.floor((s1[0] - 20) / 50) * 50; hi1 = Math.ceil((s1[1] + 20) / 50) * 50;
+      lo2 = Math.max(0, Math.floor(s2[0] * 0.75 / 25) * 25); hi2 = Math.ceil(s2[1] * 1.12 / 25) * 25;
+    }
+    if (hi1 - lo1 < 50) hi1 = lo1 + 50;
+    if (hi2 - lo2 < 50) hi2 = lo2 + 50;
+    var y1 = function (v) { return p1t + p1h - (v - lo1) / (hi1 - lo1) * p1h; };
+    var y2 = function (v) { return p2t + p2h - (v - lo2) / (hi2 - lo2) * p2h; };
+    G.x = x; G.y1 = y1; G.y2 = y2; G.p1t = p1t; G.p1h = p1h; G.p2t = p2t; G.p2h = p2h; G.xL = xL; G.xR = xR;
+
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var defs = sv('defs', {}, svg);
+    var cp = sv('clipPath', { id: 'clipv' }, defs); G.clip = sv('rect', { x: 0, y: 0, width: 0, height: H }, cp);
+    var cq = sv('clipPath', { id: 'clipp' }, defs); sv('rect', { x: xL, y: 0, width: xR - xL, height: H }, cq);
+    var g1 = sv('linearGradient', { id: 'ag1', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    sv('stop', { offset: '0%', style: 'stop-color:var(--net);stop-opacity:.2' }, g1); sv('stop', { offset: '100%', style: 'stop-color:var(--net);stop-opacity:.01' }, g1);
+    var g2 = sv('linearGradient', { id: 'ag2', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    sv('stop', { offset: '0%', style: 'stop-color:var(--accent);stop-opacity:.35' }, g2); sv('stop', { offset: '100%', style: 'stop-color:var(--accent);stop-opacity:.02' }, g2);
+
+    G.bandLabs = ACTS.map(function (a, i) {
+      var x0 = clamp(x(a.A), xL, xR), x1 = clamp(x(Math.min(a.B + DAY, TX1)), xL, xR);
+      if (x1 - x0 > 1) sv('rect', { x: x0, y: p1t - 14, width: x1 - x0, height: p2t + p2h - p1t + 14, style: 'fill:' + (i % 2 ? 'var(--band)' : 'transparent') }, svg);
+      var tl = sv('text', { class: 'bandlab', x: x0 + 6, y: p2t + p2h - 6, style: 'fill:' + (i ? 'var(--teal)' : 'var(--hot)') }, svg);
+      tl.textContent = (narrow || x1 - x0 < 190) ? 'Act ' + a.id : 'Act ' + a.id + ' · ' + a.name;
+      if (x1 - x0 < 44) tl.setAttribute('display', 'none');
+      return tl;
+    });
+    sv('line', { x1: xL, x2: xR, y1: p1t + p1h + 10, y2: p1t + p1h + 10, style: 'stroke:var(--muted);stroke-opacity:.4;stroke-width:1' }, svg);
+    sv('rect', { x: xL, y: p1t - 12, width: 8, height: 8, rx: 2, style: 'fill:var(--net)' }, svg);
+    sv('rect', { x: xL, y: p2t - 19, width: 8, height: 8, rx: 2, style: 'fill:var(--accent)' }, svg);
+    var ctl = $('p2ctl'); ctl.style.top = (p2t - 28) + 'px'; ctl.classList.toggle('compact', narrow);
+    var t1 = sv('text', { class: 'ptitle', x: xL + 13, y: p1t - 4 }, svg); t1.textContent = narrow ? 'Shares (M)' : 'Shares outstanding (millions, axis starts at ' + thou(lo1) + 'M)';
+    if (W >= 760) {
+      var lgx = xR;
+      [['Authorization or other', 'var(--violet)'], ['Shares retired', 'var(--teal)'], ['Shares issued', 'var(--hot)']].forEach(function (e) {
+        var w = e[0].length * 5.9 + 12; lgx -= w;
+        sv('circle', { cx: lgx + 4, cy: p1t - 8, r: 4, style: 'fill:' + e[1] }, svg);
+        var lt = sv('text', { x: lgx + 12, y: p1t - 4 }, svg); lt.textContent = e[0];
+        lgx -= 14;
+      });
+    }
+    var t2 = sv('text', { class: 'ptitle', x: xL + 13, y: p2t - 11 }, svg); t2.textContent = PM === 'cap' ? (narrow ? 'Market cap ($B)' : 'Market cap ($B, month-end)') : (narrow ? 'Share price ($)' : 'Share price ($, estimated before Aug 2026)');
+    var tk1 = ticksFor(lo1, hi1, 5), tk2 = ticksFor(lo2, hi2, 5);
+    tk1.forEach(function (v, idx) {
+      sv('line', { x1: xL, x2: xR, y1: y1(v), y2: y1(v), style: 'stroke:var(--line);stroke-width:1' }, svg);
+      if (!narrow || idx % 2 === 0) { var tx = sv('text', { x: xL - 6, y: y1(v) + 4, 'text-anchor': 'end' }, svg); tx.textContent = thou(v); }
+    });
+    tk2.forEach(function (v, idx) {
+      sv('line', { x1: xL, x2: xR, y1: y2(v), y2: y2(v), style: 'stroke:var(--line);stroke-width:1' }, svg);
+      if (!narrow || idx % 2 === 0) { var tx = sv('text', { x: xL - 6, y: y2(v) + 4, 'text-anchor': 'end' }, svg); tx.textContent = '$' + v + (PM === 'cap' ? 'B' : ''); }
+    });
+    var spanY = (R.b - R.a) / (365.25 * DAY), y0 = new Date(R.a).getUTCFullYear(), y9 = Math.min(2026, new Date(R.b).getUTCFullYear());
+    if (spanY <= 2.6) {
+      for (var yr = y0; yr <= y9; yr++) [1, 4, 7, 10].forEach(function (mo) {
+        var tt = utc(yr + '-' + (mo < 10 ? '0' : '') + mo + '-01'); if (tt < R.a || tt > R.b) return;
+        var tx = sv('text', { x: x(tt), y: H - 7, 'text-anchor': 'middle' }, svg);
+        tx.textContent = MON[mo - 1].charAt(0) + MON[mo - 1].slice(1).toLowerCase() + (mo === 1 ? ' ' + yr : '');
+      });
+    } else {
+      var step = narrow ? 3 : 1;
+      for (var yr2 = y0, k = 0; yr2 <= y9; yr2++, k++) {
+        if (k % step) continue;
+        var tt2 = utc(yr2 + '-01-01'); if (tt2 < R.a - 15 * DAY || tt2 > R.b) continue;
+        var tx2 = sv('text', { x: clamp(x(tt2), xL + 10, xR - 10), y: H - 7, 'text-anchor': 'middle' }, svg); tx2.textContent = yr2;
+      }
+    }
+    var gp = sv('g', { 'clip-path': 'url(#clipp)' }, svg);
+    var cg = sv('g', { 'clip-path': 'url(#clipv)' }, gp);
+    var area = '';
+    SHN.forEach(function (p, i) { area += (i ? 'L' : 'M') + x(p[0]).toFixed(1) + ' ' + y1(p[1]).toFixed(1); });
+    sv('path', { d: area + 'L' + x(T1).toFixed(1) + ' ' + y1(SHN[SHN.length - 1][1]).toFixed(1) + 'L' + x(T1).toFixed(1) + ' ' + (p1t + p1h) + 'L' + x(T0).toFixed(1) + ' ' + (p1t + p1h) + 'Z', style: 'fill:url(#ag1)' }, cg);
+    var runs = [], cur = null;
+    for (var i = 1; i < SHN.length; i++) {
+      var up = SHN[i][1] >= SHN[i - 1][1];
+      var seg = x(SHN[i - 1][0]).toFixed(1) + ' ' + y1(SHN[i - 1][1]).toFixed(1);
+      if (!cur || cur.up !== up) { cur = { up: up, d: 'M' + seg }; runs.push(cur); }
+      cur.d += 'L' + x(SHN[i][0]).toFixed(1) + ' ' + y1(SHN[i][1]).toFixed(1);
+    }
+    runs.forEach(function (r) { sv('path', { d: r.d, style: 'fill:none;stroke:' + 'var(--net)' + ';stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round' }, cg); });
+    var pl = '';
+    SER.forEach(function (p, i) { pl += (i ? 'L' : 'M') + x(p[0]).toFixed(1) + ' ' + y2(p[1]).toFixed(1); });
+    sv('path', { d: pl + 'L' + x(T1).toFixed(1) + ' ' + (p2t + p2h) + 'L' + x(SER[0][0]).toFixed(1) + ' ' + (p2t + p2h) + 'Z', style: 'fill:url(#ag2)' }, cg);
+    var est = '', real = '', r0 = PM === 'cap' ? T0 : REAL0;
+    SER.forEach(function (p) { if (p[0] <= r0) est += (est ? 'L' : 'M') + x(p[0]).toFixed(1) + ' ' + y2(p[1]).toFixed(1); if (p[0] >= r0) real += (real ? 'L' : 'M') + x(p[0]).toFixed(1) + ' ' + y2(p[1]).toFixed(1); });
+    sv('path', { d: est, style: 'fill:none;stroke:var(--accent);stroke-width:1.4;stroke-dasharray:4 3;stroke-linejoin:round' }, cg);
+    sv('path', { d: real, style: 'fill:none;stroke:var(--accent);stroke-width:1.7;stroke-linejoin:round' }, cg);
+    var paidG = sv('g', {}, cg);
+    if (PM === 'price' && SHOWPAID) PAID.forEach(function (p) {
+      var yy = y2(p.price), xa = x(p.a), xb = x(p.b);
+      var ln = sv('line', { x1: xa, x2: xb, y1: yy, y2: yy, style: 'stroke:var(--teal);stroke-width:2;stroke-linecap:round;opacity:.55;stroke-dasharray:' + (p.est ? '2 4' : 'none') }, paidG);
+      var lt = sv('text', { x: (xa + xb) / 2, y: yy - 8, 'text-anchor': 'middle', style: 'fill:var(--teal);font-weight:700;font-size:11px;opacity:0;pointer-events:none' }, paidG);
+      lt.textContent = 'Avg. paid ' + p.label;
+      var hit = sv('rect', { x: xa, y: yy - 9, width: Math.max(8, xb - xa), height: 18, style: 'fill:transparent;cursor:pointer' }, paidG);
+      hit.addEventListener('pointermove', function (ev) {
+        ev.stopPropagation(); hideHover();
+        ln.style.opacity = 1; ln.style.strokeWidth = 4; lt.style.opacity = 1;
+        showTipText(ev, p.short + ' buyback average: $' + p.price.toFixed(2), paidLines(p), C.ret);
+      });
+      hit.addEventListener('pointerleave', function () { ln.style.opacity = .55; ln.style.strokeWidth = 2; lt.style.opacity = 0; tip.hidden = true; });
+      hit.addEventListener('click', function (ev) { ev.stopPropagation(); seekTo(p.b); });
+    });
+
+    var gg = sv('g', { 'clip-path': 'url(#clipp)' }, svg), gg2 = sv('g', { 'clip-path': 'url(#clipg)' }, gg);
+    var cgp = sv('clipPath', { id: 'clipg' }, defs); G.gclip = sv('rect', { x: 0, y: 0, width: 0, height: H }, cgp);
+    sv('path', { d: area, style: 'fill:none;stroke:var(--net);stroke-width:1.6;stroke-dasharray:3 3;opacity:.55' }, gg2);
+    sv('path', { d: pl, style: 'fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:3 3;opacity:.55' }, gg2);
+    var lg = sv('g', {}, svg), mg = sv('g', {}, svg);
+    G.selLine = sv('line', { y1: p1t, y2: p2t + p2h, style: 'stroke-width:1.5;stroke-dasharray:4 3;opacity:.75', display: 'none' }, lg);
+    items.forEach(function (it) {
+      it.pv = interp(SER, it.t);
+      it.ldr = sv('line', { class: 'ldr', x1: it.px, x2: it.px, y1: 4 + it.lv * cardH + it.h, y2: y1(it.v) - 6, style: 'stroke:' + it.col }, lg);
+      it.mks = [];
+      [y1(it.v), y2(it.pv)].forEach(function (cy) {
+        var gk = sv('g', { class: 'mk' }, mg);
+        sv('circle', { class: 'ring', cx: it.px, cy: cy, r: 3.5, style: 'stroke:' + it.col }, gk);
+        sv('circle', { class: 'dot', cx: it.px, cy: cy, r: 3.2, style: 'fill:' + (it.est ? 'var(--panel)' : it.col) + ';stroke:' + it.col + ';stroke-width:1.3' + (it.est ? ';stroke-dasharray:3 2' : '') }, gk);
+        var hit = sv('circle', { class: 'hit', cx: it.px, cy: cy, r: 10 }, gk);
+        if (!it.inr) gk.setAttribute('display', 'none');
+        it.mks.push(gk); bindDot(hit, it);
+      });
+      it.el.style.left = (it.cx - it.w / 2) + 'px'; it.el.style.top = (4 + it.lv * cardH) + 'px';
+      if (!it.inr) it.el.style.display = 'none';
+    });
+    G.now = sv('line', { y1: p1t, y2: p2t + p2h, style: 'stroke:var(--fg);stroke-opacity:.3;stroke-dasharray:3 3' }, svg);
+    G.h1 = sv('g', {}, svg); sv('circle', { class: 'head-ring', r: 4 }, G.h1); sv('circle', { r: 3.2, style: 'fill:var(--net);stroke:var(--panel);stroke-width:1.5' }, G.h1);
+    G.h2 = sv('g', {}, svg); sv('circle', { r: 3, style: 'fill:var(--accent);stroke:var(--panel);stroke-width:1.5' }, G.h2);
+    G.l1 = sv('text', { class: 'headlab' }, svg); G.l2 = sv('text', { class: 'headlab' }, svg);
+    G.hv = sv('g', { display: 'none', 'pointer-events': 'none' }, svg);
+    G.hvl = sv('line', { y1: p1t, y2: p2t + p2h, style: 'stroke:var(--fg);stroke-opacity:.5;stroke-width:1' }, G.hv);
+    G.hvc1 = sv('circle', { r: 4, style: 'fill:var(--panel);stroke:var(--net);stroke-width:2' }, G.hv);
+    G.hvc2 = sv('circle', { r: 4, style: 'fill:var(--panel);stroke:var(--accent);stroke-width:2' }, G.hv);
+    hoverTip = false;
+  }
+  box.addEventListener('pointermove', function (ev) {
+    if (!G.x) return;
+    var t = plotTime(ev);
+    if (t === null) { hideHover(); return; }
+    var sh = interp(SHN, t), pv = interp(PX, t), isReal = t >= REAL0 - 15 * DAY;
+    var near = REPD.some(function (d) { return Math.abs(d - t) <= 16 * DAY; });
+    var xs = G.x(t);
+    G.hv.removeAttribute('display');
+    G.hvl.setAttribute('x1', xs); G.hvl.setAttribute('x2', xs);
+    G.hvc1.setAttribute('cx', xs); G.hvc1.setAttribute('cy', G.y1(sh)); G.hvc2.setAttribute('cx', xs); G.hvc2.setAttribute('cy', G.y2(interp(G.ser, t)));
+    var by = buyAt(t), lines = [
+      ['Shares outstanding: ' + thou(sh) + 'M (' + (near ? 'reported' : 'interpolated') + ')', C.sh],
+      ['Share price: $' + pv.toFixed(2) + (isReal ? ' (close)' : ' (estimate)'), C.px],
+      ['Market cap: about $' + (sh * pv / 1000).toFixed(0) + 'B', C.px],
+      by.sh >= 1 ? ['Retired since Aug 2022: ' + Math.round(by.sh) + 'M shares for $' + (by.usd / 1000).toFixed(1) + 'B', C.ret] : ''
+    ];
+    showTipText(ev, monLong(t), lines); hoverTip = true;
+  });
+  box.addEventListener('pointerleave', hideHover);
+
+  /* ---------- lens column ---------- */
+  var L = { 1: {}, 2: {}, 3: {} };
+  function fyRange(f) { return monLong(f.A + DAY) + ' to ' + monLong(f.B) + (f.fy === 'FY2027' ? ' (year to date)' : ''); }
+  function fyLines(f) {
+    var out = [['Shares ' + Math.round(f.start_sh) + 'M → ' + Math.round(f.end_sh) + 'M (' + (f.net >= 0 ? '+' : '−') + Math.abs(f.net).toFixed(1) + '%)', C.sh]];
+    if (f.emp >= 0.5) out.push(['Issued to employees: ' + fmtM(f.emp), C.emp]);
+    if (f.acq >= 0.5) out.push(['Issued for acquisitions: ' + fmtM(f.acq), C.deal]);
+    if (f.oth >= 0.5) out.push(['Other issuance: ' + fmtM(f.oth), C.deal]);
+    out.push(f.rep ? ['Bought back: ' + Math.round(f.rep) + 'M shares for $' + (f.rep_usd / 1000).toFixed(1) + 'B', C.ret] : 'No buybacks');
+    out.push(f.sbc != null ? ['Employee stock pay: $' + (f.sbc / 1000).toFixed(1) + 'B', C.emp] : 'Employee stock pay: not collected');
+    out.push('Click to jump to the end of this period.');
+    return out;
+  }
+  function paidLines(p) {
+    var f = FY.filter(function (z) { return z.fy === 'FY20' + p.short.slice(2); })[0];
+    return [monLong(p.a) + ' to ' + monLong(p.b),
+      ['Average price paid: $' + p.price.toFixed(2) + (p.est ? ' (estimate)' : ''), C.ret],
+      f ? ['Bought back ' + Math.round(f.rep) + 'M shares for $' + (f.rep_usd / 1000).toFixed(1) + 'B', C.ret] : '',
+      p.est ? 'Counts the 103M ASR shares delivered so far; the rest is pending.' : '',
+      'Click to jump to the end of this period.'];
+  }
+  function lensSize(el) { return { w: el.clientWidth || 260, h: el.clientHeight || 100 }; }
+  function layoutLens() {
+    /* lens 1: net change by fiscal year */
+    var v = $('v1'), s = lensSize(v), W = s.w, H = s.h;
+    v.setAttribute('viewBox', '0 0 ' + W + ' ' + H); while (v.firstChild) v.removeChild(v.firstChild);
+    var n = FY.length, pl = 6, pr = 4, cw = (W - pl - pr) / n, top = 4, bot = H - 13, mid = top + (bot - top) * 0.6;
+    var sy = Math.min((mid - top) / 17, (bot - mid) / 13);
+    sv('line', { x1: pl, x2: W - pr, y1: mid, y2: mid, style: 'stroke:var(--muted);stroke-width:1' }, v);
+    L[1].rows = FY.map(function (f, i) {
+      var cx = pl + (i + .5) * cw, bw = Math.max(3, cw * 0.56);
+      var hl = sv('rect', { x: cx - cw / 2 + 1, y: top, width: cw - 2, height: bot - top, rx: 3, style: 'fill:var(--accent-soft);opacity:0' }, v);
+      var up = sv('rect', { x: cx - bw / 2, y: mid, width: bw, height: 0, style: 'fill:var(--hot)' }, v);
+      var dn = sv('rect', { x: cx - bw / 2, y: mid, width: bw, height: 0, style: 'fill:var(--teal)' }, v);
+      var dot = sv('circle', { cx: cx, cy: mid, r: 2.6, style: 'fill:var(--fg);stroke:var(--panel);stroke-width:1;opacity:0' }, v);
+      if (cw > 16 || i % 2 === 0) { var lb = sv('text', { x: cx, y: H - 2, 'text-anchor': 'middle' }, v); lb.textContent = cw > 20 ? 'FY' + f.fy.slice(-2) : f.fy.slice(-2); }
+      var row = { f: f, hl: hl, up: up, dn: dn, dot: dot, mid: mid, sy: sy, h: false };
+      var hit = sv('rect', { x: cx - cw / 2, y: top, width: cw, height: H - top, style: 'fill:transparent;cursor:pointer' }, v);
+      hit.addEventListener('pointermove', function (ev) { row.h = true; showTipText(ev, f.fy + ' · ' + fyRange(f), fyLines(f)); });
+      hit.addEventListener('pointerleave', function () { row.h = false; tip.hidden = true; });
+      hit.addEventListener('click', function () { seekTo(f.B); });
+      return row;
+    });
+    /* lens 2: cumulative stock pay and buybacks over time */
+    v = $('v2'); s = lensSize(v); W = s.w; H = s.h;
+    v.setAttribute('viewBox', '0 0 ' + W + ' ' + H); while (v.firstChild) v.removeChild(v.firstChild);
+    var xl = 4, xr = W - 40, yb = H - 13, yt = 6, maxv = 62;
+    var xx = function (t) { return xl + (t - T0) / (T1 - T0) * (xr - xl); }, yy = function (val) { return yb - val / maxv * (yb - yt); };
+    sv('line', { x1: xl, x2: xr, y1: yb, y2: yb, style: 'stroke:var(--line)' }, v);
+    [2016, 2018, 2020, 2022, 2024, 2026].forEach(function (yr) { if (W < 200 && yr % 4) return; var tx = sv('text', { x: xx(utc(yr + '-01-01')), y: H - 2, 'text-anchor': 'middle' }, v); tx.textContent = yr; });
+    var cl = sv('clipPath', { id: 'clip2' }, v); L[2].clip = sv('rect', { x: 0, y: 0, width: 0, height: H }, cl);
+    var gDm = sv('g', {}, v), gSm = sv('g', {}, v);
+    var gsb = sv('g', { 'clip-path': 'url(#clip2)' }, gDm), pb = '', ps = '', pa = '', N = 150;
+    for (var i = 0; i <= N; i++) {
+      var tt = T0 + (T1 - T0) * i / N;
+      pb += (i ? 'L' : 'M') + xx(tt).toFixed(1) + ' ' + yy(buyAt(tt).usd / 1000).toFixed(1);
+      pa += (i ? 'L' : 'M') + xx(tt).toFixed(1) + ' ' + yy(interp(ACQ, tt)).toFixed(1);
+      if (tt <= SBC_END) ps += (ps ? 'L' : 'M') + xx(tt).toFixed(1) + ' ' + yy(sbcAt(tt) / 1000).toFixed(1);
+    }
+    sv('path', { d: pb, style: 'fill:none;stroke:var(--teal);stroke-width:2.2' }, gsb);
+    sv('path', { d: ps, style: 'fill:none;stroke:var(--hot);stroke-width:2.2' }, gsb);
+    sv('path', { d: pa, style: 'fill:none;stroke:var(--gold);stroke-width:2.2' }, gsb);
+    L[2].dB = sv('circle', { r: 3.5, style: 'fill:var(--teal);stroke:var(--panel);stroke-width:1.5' },gDm);
+    L[2].dS = sv('circle', { r: 3.5, style: 'fill:var(--hot);stroke:var(--panel);stroke-width:1.5' },gDm);
+    L[2].dA = sv('circle', { r: 3.5, style: 'fill:var(--gold);stroke:var(--panel);stroke-width:1.5' }, gDm);
+    L[2].tA = sv('text', { class: 'val', x: W - 2, 'text-anchor': 'end', style: 'fill:var(--gold)' }, gDm);
+    L[2].tB = sv('text', { class: 'val', x: W - 2, 'text-anchor': 'end', style: 'fill:var(--teal)' },gDm);
+    L[2].tS = sv('text', { class: 'val', x: W - 2, 'text-anchor': 'end', style: 'fill:var(--hot)' },gDm);
+    var lo2 = -300, hi2 = 470, yz = function (val) { return yb - (val - lo2) / (hi2 - lo2) * (yb - yt); };
+    var gcl = sv('g', { 'clip-path': 'url(#clip2)' }, gSm), pe = [], pd = [], pr = [], pn = [], k2;
+    for (k2 = 0; k2 <= N; k2++) {
+      var tc = T0 + (T1 - T0) * k2 / N, cc = cumAt(tc), xv = xx(tc).toFixed(1), nt = interp(SHN, tc) - SHN[0][1];
+      pe.push(xv + ' ' + yz(cc[0]).toFixed(1)); pd.push(xv + ' ' + yz(cc[0] + cc[1]).toFixed(1)); pr.push(xv + ' ' + yz(-cc[2]).toFixed(1)); pn.push(xv + ' ' + yz(nt).toFixed(1));
+    }
+    var xa = xx(T0).toFixed(1), xb = xx(T1).toFixed(1), z0 = yz(0).toFixed(1);
+    sv('path', { d: 'M' + xa + ' ' + z0 + 'L' + pe.join('L') + 'L' + xb + ' ' + z0 + 'Z', style: 'fill:var(--hot);opacity:.35' }, gcl);
+    sv('path', { d: 'M' + pd.join('L') + 'L' + pe.slice().reverse().join('L') + 'Z', style: 'fill:var(--gold);opacity:.45' }, gcl);
+    sv('path', { d: 'M' + xa + ' ' + z0 + 'L' + pr.join('L') + 'L' + xb + ' ' + z0 + 'Z', style: 'fill:var(--teal);opacity:.4' }, gcl);
+    sv('path', { d: 'M' + pe.join('L'), style: 'fill:none;stroke:var(--hot);stroke-width:1.4' }, gcl);
+    sv('path', { d: 'M' + pd.join('L'), style: 'fill:none;stroke:var(--gold);stroke-width:1.4' }, gcl);
+    sv('path', { d: 'M' + pr.join('L'), style: 'fill:none;stroke:var(--teal);stroke-width:1.4' }, gcl);
+    sv('path', { d: 'M' + pn.join('L'), style: 'fill:none;stroke:var(--net);stroke-width:2.2;stroke-linejoin:round' }, gcl);
+    sv('line', { x1: xl, x2: xr, y1: yz(0), y2: yz(0), style: 'stroke:var(--muted);stroke-width:1' }, gSm);
+    [-200, 0, 200, 400].forEach(function (val) { var tl = sv('text', { x: xr + 4, y: yz(val) + 3 }, gSm); tl.textContent = (val > 0 ? '+' : val < 0 ? '−' : '') + Math.abs(val) + 'M'; });
+    L[2].dN = sv('circle', { r: 3.8, style: 'fill:var(--net);stroke:var(--panel);stroke-width:1.5' }, gSm);
+    var cl2g = sv('clipPath', { id: 'clip2g' }, v); L[2].gclip = sv('rect', { x: 0, y: 0, width: 0, height: H }, cl2g);
+    [[gsb, gDm], [gcl, gSm]].forEach(function (pr) { var c2 = pr[0].cloneNode(true); c2.setAttribute('clip-path', 'url(#clip2g)'); c2.style.opacity = '.3'; pr[1].appendChild(c2); });
+    L[2].yz = yz; L[2].gD = gDm; L[2].gS = gSm;
+    gDm.setAttribute('display', M2 === 'usd' ? '' : 'none'); gSm.setAttribute('display', M2 === 'sh' ? '' : 'none');
+    L[2].xx = xx; L[2].yy = yy; L[2].W = W; L[2].H = H;
+    var v2 = v;
+    var t2at = function (ev) { var px = ev.clientX - v2.getBoundingClientRect().left; return (px < xl || px > xr) ? null : T0 + (px - xl) / (xr - xl) * (T1 - T0); };
+    if (L[2].hm) { v2.removeEventListener('pointermove', L[2].hm); v2.removeEventListener('pointerleave', L[2].hl); v2.removeEventListener('click', L[2].hc); }
+    L[2].hm = function (ev) {
+      var tm = t2at(ev);
+      if (tm === null || tm > dateAt(st.reach)) { tip.hidden = true; return; }
+      if (M2 === 'sh') {
+        var cc2 = cumAt(tm), net2 = interp(SHN, tm) - SHN[0][1];
+        showTipText(ev, monLong(tm), ['Since Jan 2015:', ['Employee shares (RSUs, options, stock plan): ' + sgn(cc2[0]), C.emp], ['Shares issued for acquisitions: ' + sgn(cc2[1]), C.deal],
+          ['Shares bought back: ' + sgn(-cc2[2]), C.ret], ['Net change in shares outstanding: ' + sgn(net2), C.sh], 'Click to jump here.']);
+        return;
+      }
+      showTipText(ev, monLong(tm), [['Buybacks so far: $' + (buyAt(tm).usd / 1000).toFixed(1) + 'B', C.ret], ['Stock-paid deals so far: $' + interp(ACQ, tm).toFixed(1) + 'B (fair value of stock issued)', C.deal],
+        ['Employee stock pay so far: $' + (sbcAt(tm) / 1000).toFixed(1) + 'B' + (tm > SBC_END ? ' (FY27 not collected)' : ''), C.emp], 'Click to jump here.']);
+    };
+    L[2].hl = function () { tip.hidden = true; };
+    L[2].hc = function (ev) { var tm = t2at(ev); if (tm !== null) seekTo(tm); };
+    v2.addEventListener('pointermove', L[2].hm); v2.addEventListener('pointerleave', L[2].hl); v2.addEventListener('click', L[2].hc);
+    /* lens 3: average price paid vs price now */
+    v = $('v3'); s = lensSize(v); W = s.w; H = s.h;
+    v.setAttribute('viewBox', '0 0 ' + W + ' ' + H); while (v.firstChild) v.removeChild(v.firstChild);
+    var px0 = 14, px1 = W - 14, ay = H - 14, lo = 100, hi = 300;
+    var xp = function (p) { return px0 + (p - lo) / (hi - lo) * (px1 - px0); };
+    sv('line', { x1: px0, x2: px1, y1: ay, y2: ay, style: 'stroke:var(--line)' }, v);
+    [100, 150, 200, 250, 300].forEach(function (p) { if (W < 230 && p % 100 && p !== 200) return; var tx = sv('text', { x: xp(p), y: H - 1, 'text-anchor': 'middle' }, v); tx.textContent = '$' + p; });
+    L[3].dots = PAID.map(function (p, i) {
+      var cy = ay - 9 - (i % 2) * 11;
+      var c = sv('circle', { cx: xp(p.price), cy: cy, r: 4.5, style: 'fill:' + (p.est ? 'var(--panel)' : 'var(--teal)') + ';stroke:var(--teal);stroke-width:1.6;opacity:0' + (p.est ? ';stroke-dasharray:2 2' : '') }, v);
+      var lb = sv('text', { x: xp(p.price), y: cy - 7, 'text-anchor': 'middle', style: 'opacity:0;font-size:9.5px' }, v); lb.textContent = p.short;
+      var dd = { p: p, c: c, lb: lb, vis: false };
+      c.style.cursor = 'pointer';
+      c.addEventListener('pointermove', function (ev) { if (dd.vis) showTipText(ev, p.short + ' buybacks', paidLines(p)); });
+      c.addEventListener('pointerleave', function () { tip.hidden = true; });
+      c.addEventListener('click', function () { if (dd.vis) seekTo(p.b); });
+      return dd;
+    });
+    L[3].cur = sv('line', { y1: 2, y2: ay, style: 'stroke:var(--accent);stroke-width:2' }, v);
+    L[3].tri = sv('path', { d: 'M-4 -6 L4 -6 L0 0 Z', style: 'fill:var(--accent)' }, v);
+    L[3].xp = xp; L[3].ay = ay;
+  }
+  function updateLens(t) {
+    /* lens 1 */
+    var cur = null, hotCur = null;
+    L[1].rows.forEach(function (r) {
+      var f = r.f, p = clamp((t - f.A) / (f.B - f.A), 0, 1), hot = t >= f.A && t < f.B;
+      var g = f.gross * p, rt = f.ret * p;
+      r.up.setAttribute('y', r.mid - g * r.sy); r.up.setAttribute('height', Math.max(0, g * r.sy));
+      r.dn.setAttribute('y', r.mid); r.dn.setAttribute('height', Math.max(0, rt * r.sy));
+      r.dot.setAttribute('cy', r.mid - (g - rt) * r.sy); r.dot.style.opacity = p > 0 ? 1 : 0;
+      r.hl.style.opacity = (hot || r.h) ? 0.9 : 0;
+      if (hot) hotCur = { f: f, g: g, rt: rt }; else if (p >= 1) cur = { f: f, g: g, rt: rt };
+    });
+    cur = hotCur || cur;
+    if (cur) {
+      var net = cur.g - cur.rt, lab = 'FY' + cur.f.fy.slice(-2) + (cur.f.fy === 'FY2027' ? ' so far' : '');
+      $('s1').innerHTML = '<b></b> <span></span>';
+      $('s1').firstChild.textContent = lab + ': net ' + (net >= 0 ? '+' : '−') + Math.abs(net).toFixed(1) + '%';
+      $('s1').lastChild.textContent = '(+' + cur.g.toFixed(1) + '% issued' + (cur.rt >= 0.05 ? ', −' + cur.rt.toFixed(1) + '% retired' : ', none retired') + ')';
+    } else $('s1').textContent = 'Issued (orange) above the line, retired (teal) below.';
+    /* lens 2 */
+    var rxx = L[2].xx(dateAt(st.reach)), cxh = L[2].xx(t);
+    L[2].gclip.setAttribute('x', cxh); L[2].gclip.setAttribute('width', st.reach > st.pos + 0.05 ? Math.max(0, rxx - cxh) : 0);
+    if (M2 === 'sh') {
+      var cxs = L[2].xx(t), cu = cumAt(t), nets = interp(SHN, t) - SHN[0][1];
+      L[2].clip.setAttribute('width', Math.max(0, cxs));
+      L[2].dN.setAttribute('cx', cxs); L[2].dN.setAttribute('cy', L[2].yz(nets));
+      $('s2').innerHTML = 'Since Jan 2015: <span class="k-emp"></span> to employees (RSUs, options, stock plan), <span class="k-deal"></span> for stock-paid acquisitions, <span class="k-ret"></span> bought back. Net <span class="k-net"></span>.';
+      var ks = $('s2').querySelectorAll('span, b');
+      ks[0].textContent = sgn(cu[0]); ks[1].textContent = sgn(cu[1]); ks[2].textContent = sgn(-cu[2]); ks[3].textContent = sgn(nets);
+    } else {
+    var cx = L[2].xx(t), bcum = buyAt(t).usd / 1000, scum = sbcAt(t) / 1000;
+    L[2].clip.setAttribute('width', Math.max(0, cx));
+    var ts = Math.min(t, SBC_END);
+    L[2].dB.setAttribute('cx', cx); L[2].dB.setAttribute('cy', L[2].yy(bcum));
+    L[2].dS.setAttribute('cx', L[2].xx(ts)); L[2].dS.setAttribute('cy', L[2].yy(scum));
+    var acum = interp(ACQ, t);
+    L[2].dA.setAttribute('cx', cx); L[2].dA.setAttribute('cy', L[2].yy(acum));
+    var lab = [[L[2].tB, L[2].yy(bcum), bcum], [L[2].tS, L[2].yy(scum), scum], [L[2].tA, L[2].yy(acum), acum]].sort(function (p, q) { return p[1] - q[1]; });
+    for (var li = 1; li < lab.length; li++) if (lab[li][1] - lab[li - 1][1] < 11) lab[li][1] = lab[li - 1][1] + 11;
+    lab.forEach(function (p) { p[0].setAttribute('y', p[1] + 3); p[0].textContent = '$' + p[2].toFixed(1) + 'B'; });
+    var sb = buyAt(t).usd / 1000, ss = sbcAt(t) / 1000;
+    $('s2').innerHTML = 'Since Jan 2015: employee stock pay <span class="k-emp"></span>, stock-paid deals <span class="k-deal"></span>, buybacks <span class="k-ret"></span>' + (t > SBC_END ? ' (FY27 stock pay not collected)' : '') + '.' + (t >= BUY_FROM ? ' The retired shares would be worth <b></b> at the price then.' : '');
+    var bs = $('s2').querySelectorAll('span, b');
+    bs[0].textContent = '$' + ss.toFixed(1) + 'B'; bs[1].textContent = '$' + acum.toFixed(1) + 'B'; bs[2].textContent = '$' + sb.toFixed(1) + 'B';
+    if (bs[3]) bs[3].textContent = '$' + (buyAt(t).sh * interp(PX, t) / 1000).toFixed(1) + 'B';
+    }
+    /* lens 3 */
+    var by = buyAt(t), pxN = interp(PX, t);
+    var worth = by.sh * pxN / 1000, paid = by.usd / 1000;
+    $('sc-sh').textContent = Math.round(by.sh) + 'M';
+    $('sc-paid').textContent = '$' + paid.toFixed(1) + 'B';
+    var wv = $('sc-val'); wv.textContent = '$' + worth.toFixed(1) + 'B'; wv.className = by.sh < 1 ? '' : (worth >= paid ? 'pos' : 'neg');
+    $('s3').textContent = by.sh < 1 ? 'Dots show the average price paid each year; the blue line is the price now.' :
+      (worth >= paid ? '+' : '−') + '$' + Math.abs(worth - paid).toFixed(1) + 'B vs paid (' + (worth >= paid ? '+' : '−') + Math.abs((worth / paid - 1) * 100).toFixed(0) + '%), at $' + pxN.toFixed(0) + ' a share';
+    L[3].dots.forEach(function (d) { var on = t >= d.p.a; d.vis = on; d.c.style.pointerEvents = on ? 'all' : 'none'; d.c.style.opacity = on ? 1 : 0; d.lb.style.opacity = on ? 1 : 0; });
+    var xc = L[3].xp(clamp(pxN, 100, 300));
+    L[3].cur.setAttribute('x1', xc); L[3].cur.setAttribute('x2', xc);
+    L[3].tri.setAttribute('transform', 'translate(' + xc + ',' + (L[3].ay + 6) + ') rotate(180)');
+  }
+
+  function ddLine(id, v, arr, t, fmt) {
+    var pk = v;
+    for (var i = 0; i < arr.length && arr[i][0] <= t; i++) pk = Math.max(pk, arr[i][1]);
+    var d = v / pk - 1, el = $(id);
+    if (d > -0.003) { el.className = 'dd pos'; el.innerHTML = '<b>At its high so far</b>'; }
+    else { el.className = 'dd neg'; el.innerHTML = '<b></b> from the high, ' + fmt(pk); el.firstChild.textContent = '\u2212' + (-d * 100).toFixed(1) + '%'; }
+  }
+
+  /* ---------- per-frame drawing ---------- */
+  function drawFrame(t, pos, dt, snap) {
+    if (!G.x) return;
+    var xs = G.x(t), sh = interp(SHN, t), px = interp(PX, t);
+    G.clip.setAttribute('width', Math.max(0, xs));
+    var xrch = G.x(dateAt(st.reach)); G.gclip.setAttribute('x', xs); G.gclip.setAttribute('width', st.reach > st.pos + 0.05 ? Math.max(0, xrch - xs) : 0);
+    G.now.setAttribute('x1', xs); G.now.setAttribute('x2', xs);
+    var inx = xs >= G.xL - 1 && xs <= G.xR + 1;
+    [G.now, G.h1, G.h2, G.l1, G.l2].forEach(function (e) { if (inx) e.removeAttribute('display'); else e.setAttribute('display', 'none'); });
+    var pv2 = interp(G.ser, t), y1 = G.y1(sh), y2 = G.y2(pv2), end = xs > G.W - 90;
+    G.h1.setAttribute('transform', 'translate(' + xs + ',' + y1 + ')'); G.h2.setAttribute('transform', 'translate(' + xs + ',' + y2 + ')');
+    [[G.l1, y1, thou(sh) + 'M'], [G.l2, y2, PM === 'cap' ? '$' + pv2.toFixed(0) + 'B' : '$' + px.toFixed(0)]].forEach(function (r) {
+      r[0].setAttribute('x', xs + (end ? -10 : 10)); r[0].setAttribute('y', r[1] - 11); r[0].setAttribute('text-anchor', end ? 'end' : 'start'); r[0].textContent = r[2];
+    });
+    items.forEach(function (it) {
+      var started = pos >= it.pos, sel = st.sel === it, vis = it.inr && started && ((pos < it.pos + LIFE && pos < total - 0.05) || sel);
+      var gh = it.inr && !started && it.pos <= st.reach + 0.001;
+      it.mks.forEach(function (m) { m.classList.toggle('on', started); m.classList.toggle('sel', sel); m.classList.toggle('ghost', gh); });
+      it.el.classList.toggle('on', vis); it.ldr.classList.toggle('on', vis);
+    });
+    var sI = st.sel;
+    if (sI && sI.inr) { G.selLine.setAttribute('x1', sI.px); G.selLine.setAttribute('x2', sI.px); G.selLine.style.stroke = sI.col; G.selLine.removeAttribute('display'); }
+    else G.selLine.setAttribute('display', 'none');
+    G.bandLabs.forEach(function (l, i) { l.classList.toggle('on', t >= ACTS[i].A); });
+    ACTS.forEach(function (a, i) { actFills[i].style.width = (clamp((t - a.A) / (a.B - a.A), 0, 1) * 100) + '%'; });
+    if (disp.sh == null || snap || reduce) { disp.sh = sh; disp.px = px; } else { var k = Math.min(1, dt * 7); disp.sh += (sh - disp.sh) * k; disp.px += (px - disp.px) * k; }
+    $('n-sh').textContent = thou(disp.sh) + 'M';
+    $('n-px').textContent = '$' + disp.px.toFixed(disp.px < 100 ? 1 : 0);
+    $('n-mc').textContent = '$' + (disp.sh * disp.px / 1000).toFixed(0) + 'B';
+    $('px-est').style.visibility = t > utc('2026-08-28') ? 'hidden' : 'visible';
+    var peak = 0; for (var i = 0; i < SHN.length && SHN[i][0] <= t; i++) peak = Math.max(peak, SHN[i][1]); peak = Math.max(peak, sh);
+    var dd = sh / peak - 1, el = $('dd');
+    if (dd > -0.003) { el.className = 'dd up'; el.innerHTML = '<b>At its highest count so far</b>'; }
+    else { el.className = 'dd down'; el.innerHTML = '<b></b> from the high so far, ' + thou(peak) + 'M'; el.firstChild.textContent = '−' + (-dd * 100).toFixed(1) + '%'; }
+    ddLine('dd-px', disp.px, PX, t, function (v) { return '$' + v.toFixed(0); });
+    ddLine('dd-mc', disp.sh * disp.px / 1000, CAP, t, function (v) { return '$' + v.toFixed(0) + 'B'; });
+    $('date').textContent = monLong(t);
+    updateLens(t);
+  }
+
+  /* ---------- caption band ---------- */
+  var capEl = $('caption');
+  function renderScene(i) {
+    var s = SC[i], act = ACTS[s.act - 1];
+    var left = document.createElement('div'); left.className = 'cap-in';
+    var k = document.createElement('div'); k.className = 'kicker'; k.textContent = 'Act ' + act.id + ' · ' + act.name + ' · ' + monLong(s.A) + ' to ' + monLong(s.B);
+    var h = document.createElement('h2'); h.className = 'cap-title'; h.textContent = s.title;
+    var p = document.createElement('p'); p.className = 'cap-body'; p.textContent = s.body;
+    left.appendChild(k); left.appendChild(h); left.appendChild(p);
+    var nodes = [left];
+    if (s.big) {
+      var bg = document.createElement('div'); bg.className = 'cap-big cap-in';
+      var b = document.createElement('b'); b.textContent = s.big[0]; var sp = document.createElement('span'); sp.textContent = s.big[1];
+      bg.appendChild(b); bg.appendChild(sp); nodes.push(bg);
+    }
+    capEl.replaceChildren.apply(capEl, nodes);
+  }
+  function recapStats() {
+    var iss = 0, i7 = 0;
+    FY.forEach(function (f) { if (f.fy !== 'FY2027' && f.end_date <= '2022-01-31') iss += f.emp + f.acq + f.oth; });
+    var ends = interp(SHN, T1), sh0 = SHN[0][1], peak = 0; SHN.forEach(function (p) { peak = Math.max(peak, p[1]); });
+    var by = buyAt(T1), px = interp(PX, T1), worth = by.sh * px / 1000, paid = by.usd / 1000;
+    var b2326 = 0, s2326 = 0;
+    FY.forEach(function (f) { if (f.fy >= 'FY2023' && f.fy <= 'FY2026') { b2326 += f.rep_usd; s2326 += f.sbc; } });
+    return [
+      ['+' + Math.round(iss) + 'M', 'shares issued FY16 to FY22 (employees and deals), taking the count from ' + Math.round(sh0) + 'M to 989M'],
+      ['−' + Math.round((1 - ends / peak) * 100) + '%', 'shares now (' + Math.round(ends) + 'M) vs the roughly ' + thou(peak) + 'M mid-2022 high'],
+      [Math.round(by.sh) + 'M', 'shares retired since Aug 2022, for $' + paid.toFixed(1) + 'B'],
+      ['$' + (paid / by.sh * 1000).toFixed(0), 'average paid, vs $' + px.toFixed(2) + ' today'],
+      ['−$' + (paid - worth).toFixed(1) + 'B', 'value of retired shares at today’s price vs what was paid'],
+      ['×' + (b2326 / s2326).toFixed(1), 'buybacks ($' + (b2326 / 1000).toFixed(1) + 'B) vs stock pay ($' + (s2326 / 1000).toFixed(1) + 'B), FY23 to FY26']
+    ];
+  }
+  function renderRecap() {
+    var wrap = document.createElement('div'); wrap.className = 'recap cap-in';
+    var k = document.createElement('div'); k.className = 'kicker'; k.textContent = 'The whole story, January 2015 to November 2026';
+    var h = document.createElement('h2'); h.className = 'cap-title'; h.textContent = 'Seven years of issuing, four years of buying it back';
+    var g = document.createElement('div'); g.className = 'grid';
+    recapStats().forEach(function (r) {
+      var d = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'); b.textContent = r[0]; sp.textContent = r[1];
+      d.appendChild(b); d.appendChild(sp); g.appendChild(d);
+    });
+    wrap.appendChild(k); wrap.appendChild(h); wrap.appendChild(g);
+    capEl.replaceChildren(wrap);
+  }
+
+  /* ---------- act pills and ticks ---------- */
+  var actsHost = $('acts'), actBtns = [], actFills = [];
+  ACTS.forEach(function (a) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'actpill'; b.title = 'Act ' + a.id + ' · ' + a.name; b.setAttribute('aria-label', 'Jump to act ' + a.id + ', ' + a.name);
+    var f = document.createElement('i'); b.appendChild(f);
+    b.addEventListener('click', function () {
+      var si = SC.findIndex(function (s) { return s.act === a.id; });
+      st.pos = SC[si].start; setPlaying(true); frame(performance.now(), true);
+    });
+    actsHost.appendChild(b); actBtns.push(b); actFills.push(f);
+  });
+  var ticks = $('ticks');
+  function buildTicks() {
+    ticks.replaceChildren();
+    var span = Math.max(1e-6, st.hi - st.lo);
+    SC.forEach(function (s) { var f = (s.start - st.lo) / span; if (f < 0.001 || f > 0.999) return; var i = document.createElement('i'); i.style.left = (f * 100) + '%'; ticks.appendChild(i); });
+  }
+  buildTicks();
+
+  /* ---------- controls ---------- */
+  var btnPlay = $('btn-play'), scrub = $('scrub'), bigplay = $('bigplay');
+  function setPlaying(on) {
+    st.playing = on; if (on) st.sel = null;
+    $('ic-play').hidden = on; $('ic-pause').hidden = !on;
+    $('play-txt').textContent = on ? 'Pause' : 'Play';
+    btnPlay.setAttribute('aria-label', on ? 'Pause' : 'Play');
+    syncBigplay();
+    st.last = performance.now();
+  }
+  function atEdge() { return st.pos >= st.hi - 0.05 || st.pos <= st.lo + 0.05; }
+  function syncBigplay() { bigplay.hidden = st.playing || !atEdge(); }
+  function startFromTop() { st.pos = st.lo; st.reach = st.lo; setPlaying(true); frame(performance.now(), true); }
+  function seekTo(tm) {
+    setPlaying(false); st.sel = null;
+    st.pos = clamp(posAt(tm), st.lo, st.hi);
+    syncBigplay(); frame(performance.now(), true);
+  }
+  function sceneEndPos(i) { var e = i === LAST ? total - 0.06 : SC[i].start + SC[i].dur - 1e-4; return st.hi < total ? Math.min(e, st.hi - 0.001) : e; }
+  function atSceneEnd(i) { return st.pos >= sceneEndPos(i) - 0.02; }
+  function doNext() {
+    if (st.pos >= st.hi - 0.05) { startFromTop(); return; }
+    var i = sceneIndexAt(st.pos);
+    if (st.playing) { st.pos = sceneEndPos(i); setPlaying(false); return; }
+    if (!atSceneEnd(i)) { setPlaying(true); return; }
+    if (i === LAST) { st.pos = total; setPlaying(false); return; }
+    st.pos = Math.min(SC[i + 1].start, st.hi); setPlaying(true);
+  }
+  function doBack() {
+    if (st.pos >= st.hi - 0.05) { st.pos = sceneEndPos(st.hi >= total ? LAST : sceneIndexAt(st.pos)); setPlaying(false); return; }
+    var i = sceneIndexAt(st.pos);
+    if ((st.playing || !atSceneEnd(i)) && st.pos - SC[i].start > 0.3) { st.pos = SC[i].start; setPlaying(true); return; }
+    if (i === 0) { st.pos = st.lo; setPlaying(false); return; }
+    st.pos = sceneEndPos(i - 1); setPlaying(false);
+  }
+  function setMode(m) {
+    st.mode = m;
+    $('m-auto').setAttribute('aria-checked', m === 'auto' ? 'true' : 'false');
+    $('m-step').setAttribute('aria-checked', m === 'step' ? 'true' : 'false');
+    $('btn-back').hidden = $('btn-next').hidden = $('stepcount').hidden = m !== 'step';
+    $('bigplay-txt').textContent = m === 'step' ? 'Start, one click per scene' : 'Play the story';
+    if (m === 'auto') $('btn-next').classList.remove('waiting');
+  }
+  function updateStepUI(si, rec) {
+    if (st.mode !== 'step') return;
+    var nb = $('btn-next'), end = atSceneEnd(si);
+    nb.classList.toggle('waiting', !st.playing && !rec && end);
+    nb.firstChild.nodeValue = rec ? 'Replay' : (si === LAST && end && !st.playing ? 'Finish' : 'Next');
+    $('stepcount').textContent = rec ? 'Done' : (si + 1) + ' / ' + SC.length;
+  }
+  btnPlay.addEventListener('click', function () {
+    if (st.playing) { setPlaying(false); return; }
+    if (st.pos >= st.hi - 0.05) { startFromTop(); return; }
+    if (st.mode === 'step') { doNext(); return; }
+    setPlaying(true);
+  });
+  $('btn-restart').addEventListener('click', startFromTop);
+  bigplay.addEventListener('click', function (e) { e.stopPropagation(); startFromTop(); });
+  $('speed').addEventListener('change', function (e) { st.speed = parseFloat(e.target.value); });
+  $('m-auto').addEventListener('click', function () { setMode('auto'); });
+  $('m-step').addEventListener('click', function () { setMode('step'); });
+  $('btn-next').addEventListener('click', doNext);
+  $('btn-back').addEventListener('click', doBack);
+  box.addEventListener('click', function (ev) {
+    var tm = plotTime(ev);
+    if (tm !== null) { seekTo(tm); return; }
+    if (st.mode === 'step') doNext();
+    else if (st.playing) setPlaying(false);
+    else if (st.pos >= st.hi - 0.05) startFromTop();
+    else setPlaying(true);
+  });
+  $('btn-info').addEventListener('click', function () {
+    var n = $('notes'); n.hidden = !n.hidden; $('btn-info').setAttribute('aria-expanded', n.hidden ? 'false' : 'true');
+  });
+  scrub.addEventListener('input', function () {
+    st.pos = st.lo + scrub.value / 1000 * (st.hi - st.lo); st.sel = null;
+    syncBigplay();
+    frame(performance.now(), true);
+  });
+  document.addEventListener('keydown', function (e) {
+    var tg = e.target && e.target.tagName;
+    if (tg === 'INPUT' || tg === 'SELECT' || tg === 'TEXTAREA') return;
+    if (e.key === ' ' && tg === 'BODY') { e.preventDefault(); btnPlay.click(); return; }
+    if (e.key === 'Escape') { st.sel = null; $('notes').hidden = true; $('btn-info').setAttribute('aria-expanded', 'false'); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); if (st.mode === 'step') doNext(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); if (st.mode === 'step') doBack(); }
+  });
+
+  /* ---------- main loop ---------- */
+  function frame(ts, snap) {
+    var dt = Math.min(0.1, (ts - st.last) / 1000); st.last = ts;
+    if (st.pos < st.lo) st.pos = st.lo;
+    if (st.pos > st.hi) st.pos = st.hi;
+    if (st.pos > st.reach) st.reach = st.pos;
+    if (st.playing && !snap) {
+      var np = st.pos + dt * st.speed;
+      if (st.mode === 'step' && st.pos < st.hi - 0.05) {
+        var se = sceneEndPos(sceneIndexAt(st.pos));
+        if (np >= se) { st.pos = Math.max(st.pos, se); setPlaying(false); np = null; }
+      }
+      if (np !== null) { st.pos = np; if (st.pos >= st.hi) { st.pos = st.hi; setPlaying(false); } }
+    }
+    var t = dateAt(st.pos), si = sceneIndexAt(st.pos), atEnd = st.pos >= total - 0.05;
+    var key = atEnd ? 'r' : si;
+    if (key !== st.scene) {
+      var prevAct = st.act;
+      st.scene = key;
+      if (atEnd) renderRecap(); else renderScene(si);
+      var actNow = atEnd ? 2 : SC[si].act;
+      if (actNow !== prevAct) {
+        st.act = actNow;
+        actBtns.forEach(function (b, i) { b.classList.toggle('cur', i === actNow - 1); });
+        $('actname').textContent = 'Act ' + actNow + ' · ' + ACTS[actNow - 1].name;
+        if (st.playing && !atEnd && !reduce) {
+          var ab = $('actbanner'); $('ab-k').textContent = 'Act ' + actNow; $('ab-t').textContent = ACTS[actNow - 1].name;
+          ab.classList.remove('show'); void ab.offsetWidth; ab.classList.add('show');
+        }
+      }
+    }
+    drawFrame(t, st.pos, dt, snap || reduce);
+    updateStepUI(si, atEnd);
+    if (document.activeElement !== scrub || st.playing) scrub.value = Math.round((st.pos - st.lo) / Math.max(1e-6, st.hi - st.lo) * 1000);
+  }
+  function loop(ts) { frame(ts, false); requestAnimationFrame(loop); }
+
+  ['click', 'pointermove'].forEach(function (n) { $('p2ctl').addEventListener(n, function (e) { e.stopPropagation(); if (n === 'pointermove') hideHover(); }); });
+
+  /* ---------- range zoom ---------- */
+  var selFrom = $('r-from'), selTo = $('r-to'), chips = [].slice.call(document.querySelectorAll('.chip'));
+  for (var yv = 2015; yv <= 2026; yv++) [selFrom, selTo].forEach(function (s) { var o = document.createElement('option'); o.value = yv; o.textContent = yv; s.appendChild(o); });
+  selFrom.value = 2015; selTo.value = 2026;
+  function applyRange(fy, ty) {
+    var wasEnd = st.pos >= st.hi - 0.05;
+    R.fy = fy; R.ty = ty;
+    R.a = fy <= 2015 ? T0 : utc(fy + '-01-01'); R.b = ty >= 2026 ? TX1 : utc(ty + '-12-31');
+    st.lo = posAt(R.a); st.hi = ty >= 2026 ? total : posAt(R.b);
+    st.pos = wasEnd ? st.hi : clamp(st.pos, st.lo, st.hi); st.sel = null;
+    selFrom.value = fy; selTo.value = ty;
+    chips.forEach(function (c) { c.setAttribute('aria-pressed', c.getAttribute('data-r') === fy + '-' + ty ? 'true' : 'false'); });
+    buildTicks(); tip.hidden = true; layout(); syncBigplay(); frame(performance.now(), true);
+  }
+  selFrom.addEventListener('change', function () { var f = +selFrom.value, e = +selTo.value; applyRange(f, Math.max(f, e)); });
+  selTo.addEventListener('change', function () { var f = +selFrom.value, e = +selTo.value; applyRange(Math.min(f, e), e); });
+  chips.forEach(function (c) { c.addEventListener('click', function () { var r = c.getAttribute('data-r').split('-'); applyRange(+r[0], +r[1]); }); });
+
+  function setM2(m) {
+    M2 = m; $('m2-sh').setAttribute('aria-checked', m === 'sh' ? 'true' : 'false'); $('m2-usd').setAttribute('aria-checked', m === 'usd' ? 'true' : 'false');
+    $('h2').textContent = m === 'sh' ? 'What moves the share count' : 'Stock issued vs buybacks, in dollars';
+    L[2].gD.setAttribute('display', m === 'usd' ? '' : 'none'); L[2].gS.setAttribute('display', m === 'sh' ? '' : 'none');
+    tip.hidden = true; frame(performance.now(), true);
+  }
+  $('m2-sh').addEventListener('click', function () { setM2('sh'); });
+  $('m2-usd').addEventListener('click', function () { setM2('usd'); });
+  function setPM(m) {
+    PM = m; $('p-price').setAttribute('aria-checked', m === 'price' ? 'true' : 'false'); $('p-cap').setAttribute('aria-checked', m === 'cap' ? 'true' : 'false');
+    $('t-paid').closest('.tog').style.display = m === 'cap' ? 'none' : ''; tip.hidden = true; layout(); frame(performance.now(), true);
+  }
+  $('p-price').addEventListener('click', function () { setPM('price'); });
+  $('p-cap').addEventListener('click', function () { setPM('cap'); });
+  $('t-paid').addEventListener('change', function () { SHOWPAID = this.checked; tip.hidden = true; layout(); frame(performance.now(), true); });
+
+  /* ---------- boot ---------- */
+  layout(); layoutLens();
+  setPlaying(false);
+  st.last = performance.now();
+  frame(performance.now(), true);
+  requestAnimationFrame(loop);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { layout(); layoutLens(); frame(performance.now(), true); });
+  var rz, lastW = 0, lastH = 0;
+  function onResize() {
+    clearTimeout(rz);
+    rz = setTimeout(function () {
+      var w = box.clientWidth, h = box.clientHeight, lw = $('v1').clientWidth, lh = $('v1').clientHeight + $('v2').clientHeight + $('v3').clientHeight;
+      if (Math.abs(w - lastW) > 1 || Math.abs(h - lastH) > 1 || Math.abs(lw + lh - (G.lk || 0)) > 1) {
+        lastW = w; lastH = h; G.lk = lw + lh; layout(); layoutLens(); frame(performance.now(), true);
+      }
+    }, 100);
+  }
+  window.addEventListener('resize', onResize);
+  if (window.ResizeObserver) { var ro = new ResizeObserver(onResize); ro.observe(box); ro.observe($('l1')); ro.observe($('l2')); ro.observe($('l3')); }
+})();
+</script>
